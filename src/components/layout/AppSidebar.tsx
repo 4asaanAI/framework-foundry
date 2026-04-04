@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { MOCK_AGENTS, TEAM_LABELS } from "@/constants/agents";
+import type { Team } from "@/types/layaa";
 import {
   MessageSquare,
   Bot,
   FolderKanban,
   CheckSquare,
   LayoutDashboard,
-  Settings,
-  Bell,
   Shield,
-  ChevronLeft,
-  Search,
+  ChevronRight,
+  ChevronDown,
+  Plus,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -27,66 +28,47 @@ const NAV_ITEMS = [
   { id: "approvals", label: "Approvals", icon: Shield },
 ];
 
-const BOTTOM_ITEMS = [
-  { id: "settings", label: "Settings", icon: Settings },
-];
-
 export function AppSidebar({ activeView, onViewChange }: SidebarProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({
+    founders_office: true,
+    marketing: true,
+  });
+
+  const teams = [...new Set(MOCK_AGENTS.map((a) => a.team))] as Team[];
+
+  const toggleTeam = (team: string) => {
+    setExpandedTeams((prev) => ({ ...prev, [team]: !prev[team] }));
+  };
 
   return (
-    <aside
-      className={cn(
-        "flex flex-col h-screen bg-sidebar border-r border-sidebar-border transition-all duration-200",
-        collapsed ? "w-16" : "w-56"
-      )}
-    >
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-14 border-b border-sidebar-border">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 shrink-0">
-          <span className="text-primary font-bold text-sm">L</span>
-        </div>
-        {!collapsed && (
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-foreground tracking-tight">Layaa OS</span>
-            <span className="text-[10px] text-muted-foreground">v1.0 Framework</span>
-          </div>
-        )}
+    <aside className="flex flex-col w-[240px] h-full bg-background border-r border-border shrink-0">
+      {/* New Conversation */}
+      <div className="px-3 py-3">
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
+          onClick={() => onViewChange("chat")}
+          className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
         >
-          <ChevronLeft className={cn("h-4 w-4 transition-transform", collapsed && "rotate-180")} />
+          <Plus className="h-4 w-4" />
+          New Conversation
         </button>
       </div>
 
-      {/* Search */}
-      {!collapsed && (
-        <div className="px-3 py-2">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-muted/50 text-muted-foreground text-xs">
-            <Search className="h-3.5 w-3.5" />
-            <span>Search...</span>
-            <kbd className="ml-auto px-1.5 py-0.5 rounded bg-background text-[10px] border border-border">⌘K</kbd>
-          </div>
-        </div>
-      )}
-
       {/* Nav */}
-      <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
+      <nav className="px-2 space-y-0.5">
         {NAV_ITEMS.map((item) => (
           <button
             key={item.id}
             onClick={() => onViewChange(item.id)}
             className={cn(
-              "flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm transition-all",
+              "flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm transition-colors",
               activeView === item.id
-                ? "bg-primary/10 text-primary font-medium"
-                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                ? "bg-primary text-primary-foreground font-semibold"
+                : "text-muted-foreground hover:bg-card hover:text-foreground"
             )}
           >
             <item.icon className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>{item.label}</span>}
-            {item.id === "approvals" && !collapsed && (
+            <span>{item.label}</span>
+            {item.id === "approvals" && (
               <span className="ml-auto flex items-center justify-center w-5 h-5 rounded-full bg-warning/20 text-warning text-[10px] font-bold">
                 2
               </span>
@@ -95,42 +77,68 @@ export function AppSidebar({ activeView, onViewChange }: SidebarProps) {
         ))}
       </nav>
 
-      {/* Bottom */}
-      <div className="px-2 py-2 border-t border-sidebar-border space-y-0.5">
-        <button className={cn(
-          "flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm text-sidebar-foreground hover:bg-sidebar-accent transition-colors relative"
-        )}>
-          <Bell className="h-4 w-4 shrink-0" />
-          {!collapsed && <span>Notifications</span>}
-          <span className="absolute top-1.5 left-6 w-2 h-2 rounded-full bg-destructive" />
-        </button>
-        {BOTTOM_ITEMS.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => onViewChange(item.id)}
-            className={cn(
-              "flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm transition-colors",
-              activeView === item.id
-                ? "bg-primary/10 text-primary font-medium"
-                : "text-sidebar-foreground hover:bg-sidebar-accent"
-            )}
-          >
-            <item.icon className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>{item.label}</span>}
-          </button>
-        ))}
+      {/* Agent List */}
+      <div className="mt-4 px-2 flex-1 overflow-y-auto">
+        <h4 className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Agents
+        </h4>
+        {teams.map((team) => {
+          const teamAgents = MOCK_AGENTS.filter((a) => a.team === team);
+          const isExpanded = expandedTeams[team];
+          return (
+            <div key={team} className="mb-1">
+              <button
+                onClick={() => toggleTeam(team)}
+                className="flex items-center gap-1.5 w-full px-3 py-1.5 rounded text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                {TEAM_LABELS[team] || team}
+              </button>
+              {isExpanded && (
+                <div className="space-y-0.5 ml-2">
+                  {teamAgents.map((agent) => (
+                    <button
+                      key={agent.id}
+                      onClick={() => onViewChange("chat")}
+                      className={cn(
+                        "flex items-center gap-2 w-full px-3 py-1.5 rounded text-xs transition-colors",
+                        agent.is_active
+                          ? "text-foreground hover:bg-card"
+                          : "text-muted-foreground opacity-60"
+                      )}
+                    >
+                      <div
+                        className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold shrink-0"
+                        style={{ backgroundColor: agent.avatar_color + "20", color: agent.avatar_color }}
+                      >
+                        {agent.avatar_initials}
+                      </div>
+                      <span className="truncate">{agent.name}</span>
+                      {agent.status === "thinking" && (
+                        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary animate-pulse shrink-0" />
+                      )}
+                      {!agent.is_active && (
+                        <span className="ml-auto text-[9px] text-muted-foreground">⚠️</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
 
-        {/* Profile */}
-        <div className={cn("flex items-center gap-3 px-3 py-2 mt-2", collapsed && "justify-center")}>
-          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-semibold shrink-0">
+      {/* Profile */}
+      <div className="px-3 py-3 border-t border-border">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-semibold">
             A
           </div>
-          {!collapsed && (
-            <div className="flex flex-col">
-              <span className="text-xs font-medium text-foreground">Abhimanyu</span>
-              <span className="text-[10px] text-muted-foreground">Admin</span>
-            </div>
-          )}
+          <div className="flex flex-col">
+            <span className="text-xs font-medium text-foreground">Abhimanyu</span>
+            <span className="text-[10px] text-muted-foreground">Admin</span>
+          </div>
         </div>
       </div>
     </aside>

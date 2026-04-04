@@ -1,5 +1,8 @@
 import { useState } from "react";
+import { AppHeader } from "@/components/layout/AppHeader";
 import { AppSidebar } from "@/components/layout/AppSidebar";
+import { AppFooter } from "@/components/layout/AppFooter";
+import { RightPanel } from "@/components/layout/RightPanel";
 import { ChatView } from "@/components/views/ChatView";
 import { AgentsView } from "@/components/views/AgentsView";
 import { ProjectsView } from "@/components/views/ProjectsView";
@@ -24,12 +27,19 @@ export function AppShell() {
     }
   };
 
+  const showRightPanel = activeView === "chat";
+
   return (
-    <div className="flex h-screen overflow-hidden">
-      <AppSidebar activeView={activeView} onViewChange={setActiveView} />
-      <main className="flex-1 overflow-hidden">
-        {renderView()}
-      </main>
+    <div className="flex flex-col h-screen overflow-hidden">
+      <AppHeader onViewChange={setActiveView} />
+      <div className="flex flex-1 overflow-hidden">
+        <AppSidebar activeView={activeView} onViewChange={setActiveView} />
+        <main className="flex-1 overflow-hidden">
+          {renderView()}
+        </main>
+        {showRightPanel && <RightPanel />}
+      </div>
+      <AppFooter />
     </div>
   );
 }
