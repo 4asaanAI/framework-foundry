@@ -2,65 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 @layer base {
   :root {
-    --background: 220 20% 4%;
-    --foreground: 210 20% 92%;
+    /* Slate-based dark mode per Layaa OS UI Guidelines */
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
 
-    --card: 220 18% 7%;
-    --card-foreground: 210 20% 92%;
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 220 18% 9%;
-    --popover-foreground: 210 20% 92%;
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 160 84% 39%;
-    --primary-foreground: 220 20% 4%;
+    /* Blue-600 primary per guidelines */
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
 
-    --secondary: 220 16% 12%;
-    --secondary-foreground: 210 15% 75%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 215 20% 65%;
 
-    --muted: 220 14% 10%;
-    --muted-foreground: 215 12% 50%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 200 80% 50%;
-    --accent-foreground: 220 20% 4%;
+    --accent: 192 91% 36%;
+    --accent-foreground: 210 40% 98%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 20% 92%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 220 14% 14%;
-    --input: 220 14% 14%;
-    --ring: 160 84% 39%;
+    --border: 215 28% 27%;
+    --input: 215 28% 27%;
+    --ring: 221 83% 53%;
 
-    --radius: 0.625rem;
+    --radius: 0.5rem;
 
-    --sidebar-background: 220 20% 5.5%;
-    --sidebar-foreground: 210 15% 75%;
-    --sidebar-primary: 160 84% 39%;
-    --sidebar-primary-foreground: 220 20% 4%;
-    --sidebar-accent: 220 16% 10%;
-    --sidebar-accent-foreground: 210 20% 92%;
-    --sidebar-border: 220 14% 12%;
-    --sidebar-ring: 160 84% 39%;
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 215 20% 65%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 215 28% 27%;
+    --sidebar-ring: 221 83% 53%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 220 20% 4%;
-    --success: 160 84% 39%;
-    --success-foreground: 220 20% 4%;
-    --info: 200 80% 50%;
-    --info-foreground: 220 20% 4%;
-
-    --gradient-primary: linear-gradient(135deg, hsl(160 84% 39%), hsl(200 80% 50%));
-    --gradient-surface: linear-gradient(180deg, hsl(220 18% 8%), hsl(220 20% 5%));
-    --gradient-glow: radial-gradient(ellipse at 50% 0%, hsl(160 84% 39% / 0.08), transparent 60%);
-
-    --shadow-glow: 0 0 20px hsl(160 84% 39% / 0.15);
-    --shadow-card: 0 4px 24px hsl(0 0% 0% / 0.3);
-
-    --font-display: 'Space Grotesk', system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --warning: 48 96% 53%;
+    --warning-foreground: 222 47% 11%;
+    --success: 142 71% 45%;
+    --success-foreground: 222 47% 11%;
+    --info: 192 91% 36%;
+    --info-foreground: 222 47% 11%;
   }
 }
 
@@ -71,11 +61,11 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: var(--font-display);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif;
   }
 
   code, pre, .font-mono {
-    font-family: var(--font-mono);
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   }
 
   ::-webkit-scrollbar {
@@ -95,32 +85,6 @@
 }
 
 @layer utilities {
-  .text-gradient {
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .glow-border {
-    box-shadow: var(--shadow-glow);
-    border-color: hsl(var(--primary) / 0.3);
-  }
-
-  .surface-elevated {
-    background: hsl(var(--card));
-    box-shadow: var(--shadow-card);
-  }
-
-  .animate-pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 8px hsl(160 84% 39% / 0.2); }
-    50% { box-shadow: 0 0 20px hsl(160 84% 39% / 0.4); }
-  }
-
   @keyframes fade-in {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
