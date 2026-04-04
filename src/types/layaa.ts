@@ -4,11 +4,10 @@ export type Team =
   | "founders_office"
   | "marketing"
   | "revenue"
-  | "legal"
   | "delivery"
-  | "system"
-  | "core"
-  | "product";
+  | "support"
+  | "product"
+  | "system";
 
 export type AgentStatus =
   | "idle"
