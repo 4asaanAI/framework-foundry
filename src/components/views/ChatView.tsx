@@ -6,7 +6,7 @@ import { usePlugins } from "@/hooks/use-plugins";
 import { useConnectors } from "@/hooks/use-connectors";
 import { useProjects } from "@/hooks/use-projects";
 import { MOCK_AGENTS } from "@/constants/agents";
-import { Send, Plus, FolderKanban, ChevronDown, X, FileText, Image, File, PanelRightClose, ThumbsUp, ThumbsDown, Pin, Download, Star, StarOff, Trash2 } from "lucide-react";
+import { Send, Plus, FolderKanban, ChevronDown, X, FileText, Image, File, PanelRightClose, ThumbsUp, ThumbsDown, Pin, Download, Star, StarOff, GitBranch, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,12 +15,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { toast } from "sonner";
 import { NewProjectDialog } from "@/components/dialogs/NewProjectDialog";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import ReactMarkdown from "react-markdown";
 
 interface ChatViewProps {
   selectedAgentId?: string | null;
 }
 
-// Built-in commands
+// Built-in commands triggered by #
 const BUILT_IN_COMMANDS = [
   { name: "clear", description: "Archive current conversation history" },
   { name: "new", description: "Start a new conversation with this agent" },
@@ -32,12 +34,16 @@ const BUILT_IN_COMMANDS = [
 
 const MAX_INPUT_HISTORY = 50;
 const DRAFT_SAVE_INTERVAL = 2000;
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 export function ChatView({ selectedAgentId }: ChatViewProps) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [streaming, setStreaming] = useState(false);
+  const [streamingContent, setStreamingContent] = useState("");
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [skillPickerOpen, setSkillPickerOpen] = useState(false);
+  const [commandPickerOpen, setCommandPickerOpen] = useState(false);
   const [mentionPickerOpen, setMentionPickerOpen] = useState(false);
   const [projectPickerOpen, setProjectPickerOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<{ id: string; name: string } | null>(null);
@@ -46,10 +52,12 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
   const [mentionedAgent, setMentionedAgent] = useState<typeof agents[0] | null>(null);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [inputHistoryIndex, setInputHistoryIndex] = useState(-1);
+  const [pickerIndex, setPickerIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const draftTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const { data: dbAgents } = useAgents();
   const { user, profile } = useAuth();
@@ -65,10 +73,11 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
     : agents[0];
 
   const { data: conversations } = useConversations();
-  const activeConversation = conversations?.find((c: any) => c.agent_id === activeAgent.id);
+  const activeConversation = conversations?.find((c: any) => c.agent_id === activeAgent.id && !c.branch_parent_id);
+  const branchConversations = conversations?.filter((c: any) => c.branch_parent_id === activeConversation?.id) ?? [];
   const { data: messages } = useMessages(activeConversation?.id);
 
-  // Restore draft from localStorage on conversation change
+  // Restore draft
   useEffect(() => {
     const key = `draft_${activeAgent.id}`;
     const saved = localStorage.getItem(key);
@@ -89,7 +98,10 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, streamingContent]);
+
+  // Reset picker index when picker content changes
+  useEffect(() => { setPickerIndex(0); }, [skillPickerOpen, commandPickerOpen, mentionPickerOpen]);
 
   // Input history
   const getInputHistory = (): string[] => {
@@ -102,15 +114,14 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
     localStorage.setItem("input_history", JSON.stringify(filtered.slice(0, MAX_INPUT_HISTORY)));
   };
 
-  // Context window usage estimate
+  // Context window usage
   const estimateContextUsage = () => {
     const msgs = messages ?? [];
     const totalChars = msgs.reduce((sum: number, m: any) => sum + (m.content?.length ?? 0), 0);
     const estimatedTokens = Math.ceil(totalChars / 4);
-    const contextLimit = 128000; // default for modern models
+    const contextLimit = 128000;
     return Math.min((estimatedTokens / contextLimit) * 100, 100);
   };
-
   const contextUsage = estimateContextUsage();
 
   // Built-in command execution
@@ -118,7 +129,6 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
     switch (cmd) {
       case "clear":
         if (activeConversation) {
-          // Archive messages, don't delete
           const { data: msgs } = await supabase.from("messages").select("*").eq("conversation_id", activeConversation.id);
           if (msgs && msgs.length > 0) {
             for (const m of msgs) {
@@ -166,13 +176,128 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
         break;
       }
       case "status":
-        agents.forEach(a => {
-          toast.info(`${a.name}: ${a.status ?? "idle"}`, { duration: 3000 });
-        });
+        agents.forEach(a => { toast.info(`${a.name}: ${a.status ?? "idle"}`, { duration: 3000 }); });
         break;
       case "help":
-        toast.info("Commands: /clear, /new, /export, /budget, /status, /help. Use @ to mention agents.", { duration: 5000 });
+        toast.info("Commands: #clear, #new, #export, #budget, #status, #help. Use / for skills, @ to mention agents.", { duration: 5000 });
         break;
+    }
+  };
+
+  // Stream AI response
+  const streamAIResponse = async (conversationId: string, conversationMessages: any[]) => {
+    setStreaming(true);
+    setStreamingContent("");
+
+    const chatMessages = conversationMessages.map((m: any) => ({
+      role: m.role === "user" ? "user" as const : "assistant" as const,
+      content: m.content,
+    }));
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          messages: chatMessages,
+          model: activeAgent.default_model || "google/gemini-3-flash-preview",
+          agentName: activeAgent.name,
+          agentRole: activeAgent.canonical_role,
+          systemPrompt: activeAgent.system_prompt || "",
+        }),
+        signal: controller.signal,
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        if (resp.status === 429) { toast.error("Rate limited — please wait a moment and try again."); return; }
+        if (resp.status === 402) { toast.error("AI credits exhausted — please add funds in Settings > Workspace > Usage."); return; }
+        toast.error(errData.error || "AI request failed");
+        return;
+      }
+
+      if (!resp.body) throw new Error("No response body");
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = "";
+      let fullContent = "";
+      let streamDone = false;
+
+      while (!streamDone) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") { streamDone = true; break; }
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) {
+              fullContent += content;
+              setStreamingContent(fullContent);
+            }
+          } catch {
+            textBuffer = line + "\n" + textBuffer;
+            break;
+          }
+        }
+      }
+
+      // Flush remaining
+      if (textBuffer.trim()) {
+        for (let raw of textBuffer.split("\n")) {
+          if (!raw) continue;
+          if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+          if (raw.startsWith(":") || raw.trim() === "") continue;
+          if (!raw.startsWith("data: ")) continue;
+          const jsonStr = raw.slice(6).trim();
+          if (jsonStr === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+            if (content) { fullContent += content; setStreamingContent(fullContent); }
+          } catch { /* ignore */ }
+        }
+      }
+
+      // Save agent response to DB
+      if (fullContent) {
+        await supabase.from("messages").insert({
+          conversation_id: conversationId,
+          role: "agent" as const,
+          content: fullContent,
+          model: activeAgent.default_model || "google/gemini-3-flash-preview",
+        });
+        queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+
+        // Trigger Sage memory extraction in background (fire-and-forget)
+        supabase.functions.invoke("sage-extract", {
+          body: { conversation_id: conversationId, message_content: fullContent, agent_id: activeAgent.id },
+        }).catch(() => {});
+      }
+    } catch (e: any) {
+      if (e.name === "AbortError") return;
+      console.error("Stream error:", e);
+      toast.error("Failed to get AI response");
+    } finally {
+      setStreaming(false);
+      setStreamingContent("");
+      abortControllerRef.current = null;
     }
   };
 
@@ -182,21 +307,71 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
     setInputHistoryIndex(-1);
     const cursorPos = e.target.selectionStart;
     const textBeforeCursor = val.slice(0, cursorPos);
+
+    // "/" triggers skill picker
     const lastSlash = textBeforeCursor.lastIndexOf("/");
+    // "#" triggers command picker
+    const lastHash = textBeforeCursor.lastIndexOf("#");
     const lastAt = textBeforeCursor.lastIndexOf("@");
 
     if (lastSlash >= 0 && (lastSlash === 0 || textBeforeCursor[lastSlash - 1] === " ")) {
-      setSkillPickerOpen(true); setMentionPickerOpen(false);
+      setSkillPickerOpen(true); setCommandPickerOpen(false); setMentionPickerOpen(false);
     } else { setSkillPickerOpen(false); }
 
+    if (lastHash >= 0 && (lastHash === 0 || textBeforeCursor[lastHash - 1] === " ")) {
+      setCommandPickerOpen(true); setSkillPickerOpen(false); setMentionPickerOpen(false);
+    } else { setCommandPickerOpen(false); }
+
     if (lastAt >= 0 && (lastAt === 0 || textBeforeCursor[lastAt - 1] === " ")) {
-      setMentionPickerOpen(true); setSkillPickerOpen(false);
+      setMentionPickerOpen(true); setSkillPickerOpen(false); setCommandPickerOpen(false);
     } else { setMentionPickerOpen(false); }
   };
 
+  // Get currently visible picker items for keyboard nav
+  const getPickerItems = () => {
+    if (skillPickerOpen) return filteredSkills.slice(0, 15);
+    if (commandPickerOpen) return builtInMatches;
+    if (mentionPickerOpen) return filteredAgents.slice(0, 10);
+    return [];
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const items = getPickerItems();
+    const anyPickerOpen = skillPickerOpen || commandPickerOpen || mentionPickerOpen;
+
+    // Keyboard navigation within pickers
+    if (anyPickerOpen && items.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setPickerIndex((prev) => Math.min(prev + 1, items.length - 1));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setPickerIndex((prev) => Math.max(prev - 1, 0));
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const item = items[pickerIndex];
+        if (!item) return;
+        if (skillPickerOpen) insertSkill((item as any).name);
+        else if (commandPickerOpen) {
+          setMessage("#" + (item as any).name);
+          setCommandPickerOpen(false);
+        }
+        else if (mentionPickerOpen) insertMention(item as any);
+        return;
+      }
+      if (e.key === "Escape") {
+        setSkillPickerOpen(false); setCommandPickerOpen(false); setMentionPickerOpen(false);
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); return; }
-    // Input history navigation
+
+    // Input history navigation when empty
     if (e.key === "ArrowUp" && message === "") {
       e.preventDefault();
       const history = getInputHistory();
@@ -206,7 +381,7 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
         setMessage(history[newIdx]);
       }
     }
-    if (e.key === "ArrowDown" && inputHistoryIndex >= 0) {
+    if (e.key === "ArrowDown" && inputHistoryIndex >= 0 && !anyPickerOpen) {
       e.preventDefault();
       const history = getInputHistory();
       const newIdx = inputHistoryIndex - 1;
@@ -253,11 +428,11 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
   const removeAttachment = (idx: number) => setAttachedFiles((prev) => prev.filter((_, i) => i !== idx));
 
   const handleSend = async () => {
-    if ((!message.trim() && attachedFiles.length === 0) || !user || sending) return;
+    if ((!message.trim() && attachedFiles.length === 0) || !user || sending || streaming) return;
 
-    // Check for built-in commands
+    // Check for built-in commands (now # prefix)
     const trimmed = message.trim();
-    if (trimmed.startsWith("/")) {
+    if (trimmed.startsWith("#")) {
       const cmd = trimmed.slice(1).split(" ")[0].toLowerCase();
       const builtIn = BUILT_IN_COMMANDS.find(c => c.name === cmd);
       if (builtIn) {
@@ -268,7 +443,7 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
       }
     }
 
-    // Check budget before sending
+    // Check budget
     const effective = activeAgent.budget_tokens + (activeAgent.budget_loaned ?? 0);
     if (activeAgent.budget_used >= effective) {
       toast.error(`${activeAgent.name}'s budget is exhausted. Transfer tokens or increase budget.`);
@@ -286,20 +461,60 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
           .select("id").single();
         if (convErr) throw convErr;
         conversationId = newConv.id;
+        queryClient.invalidateQueries({ queryKey: ["conversations"] });
       }
+
       await supabase.from("messages").insert({
         conversation_id: conversationId, role: "user" as const, content: message.trim(),
         attachments: attachedFiles.length > 0 ? attachedFiles : undefined,
         mention_agent_id: mentionedAgent?.id ?? null,
       });
+      const userMsg = message.trim();
       setMessage(""); setAttachedFiles([]); setMentionedAgent(null);
       localStorage.removeItem(`draft_${activeAgent.id}`);
       queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
-      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+
+      // Fetch all messages for context and stream AI response
+      const { data: allMsgs } = await supabase.from("messages").select("*")
+        .eq("conversation_id", conversationId).order("created_at", { ascending: true });
+      
+      setSending(false);
+      await streamAIResponse(conversationId, allMsgs ?? []);
     } catch (err) {
       console.error("Send error:", err);
       toast.error("Failed to send message");
-    } finally { setSending(false); }
+      setSending(false);
+    }
+  };
+
+  // Fork conversation from a specific message
+  const handleFork = async (msgId: string) => {
+    if (!user || !activeConversation) return;
+    // Get all messages up to and including this one
+    const msgs = messages ?? [];
+    const msgIndex = msgs.findIndex((m: any) => m.id === msgId);
+    if (msgIndex < 0) return;
+    const forkedMessages = msgs.slice(0, msgIndex + 1);
+
+    const { data: newConv, error: convErr } = await supabase.from("conversations").insert({
+      agent_id: activeAgent.id, profile_id: user.id,
+      title: `Branch from ${activeAgent.name}`,
+      project_id: activeConversation.project_id ?? null,
+      branch_parent_id: activeConversation.id,
+      branch_label: `Fork at msg ${msgIndex + 1}`,
+    }).select("id").single();
+
+    if (convErr || !newConv) { toast.error("Failed to create branch"); return; }
+
+    // Copy messages to new branch
+    for (const m of forkedMessages) {
+      await supabase.from("messages").insert({
+        conversation_id: newConv.id, role: m.role as any, content: m.content,
+        attachments: m.attachments, parent_message_id: m.id,
+      });
+    }
+    queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    toast.success("Conversation branched! Find it in the sidebar.");
   };
 
   // Message actions
@@ -329,14 +544,17 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
     return <File className="h-3.5 w-3.5" />;
   };
 
-  const searchTerm = skillPickerOpen
-    ? message.slice(message.lastIndexOf("/") + 1).toLowerCase()
-    : mentionPickerOpen ? message.slice(message.lastIndexOf("@") + 1).toLowerCase() : "";
+  // Search terms for pickers
+  const skillSearchTerm = skillPickerOpen
+    ? message.slice(message.lastIndexOf("/") + 1).toLowerCase() : "";
+  const commandSearchTerm = commandPickerOpen
+    ? message.slice(message.lastIndexOf("#") + 1).toLowerCase() : "";
+  const mentionSearchTerm = mentionPickerOpen
+    ? message.slice(message.lastIndexOf("@") + 1).toLowerCase() : "";
 
-  // Merge built-in commands with skills for slash picker
-  const builtInMatches = BUILT_IN_COMMANDS.filter(c => c.name.includes(searchTerm));
-  const filteredSkills = skills?.filter((s) => s.name.toLowerCase().includes(searchTerm)) ?? [];
-  const filteredAgents = agents.filter((a) => a.name.toLowerCase().includes(searchTerm) && a.is_active);
+  const builtInMatches = BUILT_IN_COMMANDS.filter(c => c.name.includes(commandSearchTerm));
+  const filteredSkills = skills?.filter((s) => s.name.toLowerCase().includes(skillSearchTerm)) ?? [];
+  const filteredAgents = agents.filter((a) => a.name.toLowerCase().includes(mentionSearchTerm) && a.is_active);
 
   const hasSplitScreen = !!mentionedAgent && mentionedAgent.id !== activeAgent.id;
 
@@ -360,7 +578,9 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
             <span className="text-xs font-semibold">{msg.role === "user" ? (profile?.name ?? "You") : activeAgent.name}</span>
             <span className="text-[10px] opacity-60">{new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
           </div>
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+          <div className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+            <ReactMarkdown>{msg.content}</ReactMarkdown>
+          </div>
           {msg.attachments && Array.isArray(msg.attachments) && (msg.attachments as any[]).length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
               {(msg.attachments as any[]).map((att: any, i: number) => (
@@ -395,11 +615,58 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
               className={cn("p-0.5 rounded hover:bg-warning/10 transition-colors", msg.is_pinned ? "text-warning" : "text-muted-foreground")}>
               <Pin className="h-3 w-3" />
             </button>
+            <button onClick={() => handleFork(msg.id)}
+              className="p-0.5 rounded hover:bg-accent/10 transition-colors text-muted-foreground" title="Branch from here">
+              <GitBranch className="h-3 w-3" />
+            </button>
           </div>
         </div>
       </div>
     ));
   };
+
+  const renderPickerList = (items: any[], type: "skill" | "command" | "mention") => (
+    <div className="max-w-[900px] mx-auto px-6">
+      <div className="bg-popover border border-border rounded-lg shadow-lg max-h-[200px] overflow-y-auto mb-1">
+        {items.map((item, idx) => (
+          <button
+            key={item.id || item.name}
+            onClick={() => {
+              if (type === "skill") insertSkill(item.name);
+              else if (type === "command") { setMessage("#" + item.name); setCommandPickerOpen(false); }
+              else if (type === "mention") insertMention(item);
+            }}
+            className={cn(
+              "flex items-center gap-3 w-full px-3 py-2 text-left transition-colors",
+              idx === pickerIndex ? "bg-accent/20" : "hover:bg-card"
+            )}
+          >
+            {type === "mention" && (
+              <div className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold"
+                style={{ backgroundColor: item.avatar_color + "20", color: item.avatar_color }}>
+                {item.avatar_initials}
+              </div>
+            )}
+            <span className="text-xs font-medium text-foreground">
+              {type === "skill" ? `/${item.name}` : type === "command" ? `#${item.name}` : `@${item.name}`}
+            </span>
+            <span className="text-[10px] text-muted-foreground truncate">
+              {type === "mention" ? item.canonical_role : item.description}
+            </span>
+            {type === "skill" && (
+              <span className="ml-auto text-[9px] text-muted-foreground px-1.5 py-0.5 rounded bg-card border border-border">{item.category}</span>
+            )}
+            {type === "command" && (
+              <span className="ml-auto text-[9px] text-muted-foreground px-1.5 py-0.5 rounded bg-card border border-border">built-in</span>
+            )}
+            {type === "mention" && (
+              <span className="ml-auto text-[9px] text-muted-foreground">{item.team}</span>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -426,34 +693,49 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
           </div>
         )}
 
+        {/* Branch indicator */}
+        {branchConversations.length > 0 && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="flex items-center gap-1.5 ml-2 px-2 py-1 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-card transition-colors">
+                <GitBranch className="h-3.5 w-3.5" />
+                <span>{branchConversations.length} branch{branchConversations.length > 1 ? "es" : ""}</span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-1" align="start">
+              {branchConversations.map((bc: any) => (
+                <button key={bc.id} className="flex items-center gap-2 w-full px-3 py-2 rounded text-xs text-left hover:bg-card transition-colors">
+                  <GitBranch className="h-3 w-3 text-muted-foreground" />
+                  <span className="truncate">{bc.branch_label || bc.title}</span>
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+        )}
+
         <div className="ml-auto flex items-center gap-3">
-          {/* Context window indicator */}
           <div className="flex items-center gap-2" title={`~${Math.round(contextUsage)}% context used`}>
             <span className="text-[10px] text-muted-foreground">Context</span>
             <Progress value={contextUsage} className={cn("w-16 h-1.5", contextUsage > 80 && "[&>div]:bg-warning")} />
             <span className="text-[10px] text-muted-foreground">{Math.round(contextUsage)}%</span>
           </div>
-
-          {/* Star conversation */}
           {activeConversation && (
             <button onClick={handleStarConversation}
               className="p-1 rounded hover:bg-card transition-colors" title={activeConversation.is_starred ? "Unstar" : "Star"}>
-              {activeConversation.is_starred ? <Star className="h-4 w-4 text-warning fill-warning" /> : <StarOff className="h-4 w-4 text-muted-foreground" />}
+              {activeConversation.is_starred ? <Star className="h-4 w-4 text-warning fill-warning" /> : <Star className="h-4 w-4 text-muted-foreground" />}
             </button>
           )}
-
-          {/* Export */}
           <button onClick={() => executeBuiltInCommand("export")} className="p-1 rounded hover:bg-card transition-colors" title="Export conversation">
             <Download className="h-4 w-4 text-muted-foreground" />
           </button>
-
           <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium",
+            streaming ? "bg-primary/20 text-primary" :
             activeAgent.status === "thinking" ? "bg-primary/20 text-primary" :
             activeAgent.status === "error" ? "bg-destructive/20 text-destructive" :
             activeAgent.status === "budget_exhausted" ? "bg-warning/20 text-warning" :
             "bg-success/20 text-success"
           )}>
-            {activeAgent.status ?? "idle"}
+            {streaming ? "thinking" : activeAgent.status ?? "idle"}
           </span>
         </div>
       </div>
@@ -470,7 +752,7 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
       <div className="flex-1 overflow-hidden flex">
         <div className={cn("flex-1 overflow-y-auto", hasSplitScreen && "border-r border-border")}>
           <div className="max-w-[900px] mx-auto px-6 py-4 space-y-4">
-            {displayMessages.length === 0 && (
+            {displayMessages.length === 0 && !streaming && (
               <div className="flex flex-col items-center justify-center h-full py-20 text-center">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold mb-4"
                   style={{ backgroundColor: activeAgent.avatar_color + "20", color: activeAgent.avatar_color }}>
@@ -478,10 +760,42 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-1">Chat with {activeAgent.name}</h3>
                 <p className="text-sm text-muted-foreground max-w-md">{activeAgent.description}</p>
-                <p className="text-xs text-muted-foreground mt-3">Type <code className="px-1.5 py-0.5 rounded bg-card border border-border">/help</code> for available commands</p>
+                <p className="text-xs text-muted-foreground mt-3">Type <code className="px-1.5 py-0.5 rounded bg-card border border-border">#help</code> for commands, <code className="px-1.5 py-0.5 rounded bg-card border border-border">/</code> for skills</p>
               </div>
             )}
             {renderMessages()}
+            {/* Streaming message */}
+            {streaming && streamingContent && (
+              <div className="flex gap-3 animate-fade-in">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 mt-1 border-2 border-border"
+                  style={{ backgroundColor: activeAgent.avatar_color + "20", color: activeAgent.avatar_color }}>
+                  {activeAgent.avatar_initials}
+                </div>
+                <div className="max-w-[70%] rounded-lg px-4 py-2 bg-card text-foreground">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs font-semibold">{activeAgent.name}</span>
+                    <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                  </div>
+                  <div className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown>{streamingContent}</ReactMarkdown>
+                  </div>
+                </div>
+              </div>
+            )}
+            {streaming && !streamingContent && (
+              <div className="flex gap-3 animate-fade-in">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 mt-1 border-2 border-border"
+                  style={{ backgroundColor: activeAgent.avatar_color + "20", color: activeAgent.avatar_color }}>
+                  {activeAgent.avatar_initials}
+                </div>
+                <div className="max-w-[70%] rounded-lg px-4 py-2 bg-card text-foreground">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <span className="text-xs text-muted-foreground">{activeAgent.name} is thinking...</span>
+                  </div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
         </div>
@@ -509,47 +823,12 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
 
       {/* Chat Input */}
       <div className="border-t border-border shrink-0">
-        {/* Slash command picker — built-in + skills */}
-        {skillPickerOpen && (builtInMatches.length > 0 || filteredSkills.length > 0) && (
-          <div className="max-w-[900px] mx-auto px-6">
-            <div className="bg-popover border border-border rounded-lg shadow-lg max-h-[200px] overflow-y-auto mb-1">
-              {builtInMatches.map((cmd) => (
-                <button key={cmd.name} onClick={() => { setMessage("/" + cmd.name); setSkillPickerOpen(false); }}
-                  className="flex items-center gap-3 w-full px-3 py-2 hover:bg-card text-left transition-colors">
-                  <span className="text-xs font-medium text-primary">/{cmd.name}</span>
-                  <span className="text-[10px] text-muted-foreground">{cmd.description}</span>
-                  <span className="ml-auto text-[9px] text-muted-foreground px-1.5 py-0.5 rounded bg-card border border-border">built-in</span>
-                </button>
-              ))}
-              {filteredSkills.slice(0, 10).map((skill) => (
-                <button key={skill.id} onClick={() => insertSkill(skill.name)}
-                  className="flex items-center gap-3 w-full px-3 py-2 hover:bg-card text-left transition-colors">
-                  <span className="text-xs font-medium text-foreground">/{skill.name}</span>
-                  <span className="text-[10px] text-muted-foreground truncate">{skill.description}</span>
-                  <span className="ml-auto text-[9px] text-muted-foreground px-1.5 py-0.5 rounded bg-card border border-border">{skill.category}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {mentionPickerOpen && filteredAgents.length > 0 && (
-          <div className="max-w-[900px] mx-auto px-6">
-            <div className="bg-popover border border-border rounded-lg shadow-lg max-h-[200px] overflow-y-auto mb-1">
-              {filteredAgents.slice(0, 10).map((agent) => (
-                <button key={agent.id} onClick={() => insertMention(agent)}
-                  className="flex items-center gap-3 w-full px-3 py-2 hover:bg-card text-left transition-colors">
-                  <div className="w-5 h-5 rounded flex items-center justify-center text-[9px] font-bold"
-                    style={{ backgroundColor: agent.avatar_color + "20", color: agent.avatar_color }}>
-                    {agent.avatar_initials}
-                  </div>
-                  <span className="text-xs font-medium text-foreground">@{agent.name}</span>
-                  <span className="text-[10px] text-muted-foreground truncate">{agent.canonical_role}</span>
-                  <span className="ml-auto text-[9px] text-muted-foreground">{agent.team}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Skill picker (/) */}
+        {skillPickerOpen && filteredSkills.length > 0 && renderPickerList(filteredSkills.slice(0, 15), "skill")}
+        {/* Command picker (#) */}
+        {commandPickerOpen && builtInMatches.length > 0 && renderPickerList(builtInMatches, "command")}
+        {/* Mention picker (@) */}
+        {mentionPickerOpen && filteredAgents.length > 0 && renderPickerList(filteredAgents.slice(0, 10), "mention")}
 
         <div className="max-w-[900px] mx-auto px-6 py-3">
           {attachedFiles.length > 0 && (
@@ -567,7 +846,7 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
           <div className="flex flex-col rounded-lg bg-card border border-border overflow-hidden">
             <textarea ref={textareaRef} value={message} onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder="Type / for commands, @ to mention an agent..."
+              placeholder="Type / for skills, # for commands, @ to mention an agent..."
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground resize-none outline-none min-h-[44px] max-h-[120px] px-4 py-3"
               rows={1}
             />
@@ -657,10 +936,10 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-muted-foreground">{activeAgent.default_model}</span>
                 <button onClick={handleSend}
-                  disabled={(!message.trim() && attachedFiles.length === 0) || sending}
+                  disabled={(!message.trim() && attachedFiles.length === 0) || sending || streaming}
                   className="p-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
                   aria-label="Send message">
-                  <Send className="h-4 w-4" />
+                  {sending || streaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </button>
               </div>
             </div>
