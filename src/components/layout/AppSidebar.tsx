@@ -33,6 +33,26 @@ const NAV_ITEMS = [
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
+function ProfileFooter() {
+  const { profile, signOut } = useAuth();
+  return (
+    <div className="px-3 py-3 border-t border-border">
+      <button onClick={signOut} className="flex items-center gap-2 w-full hover:bg-card rounded-lg p-1 transition-colors">
+        <div
+          className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold"
+          style={{ backgroundColor: (profile?.color ?? "#2563EB") + "20", color: profile?.color ?? "#2563EB" }}
+        >
+          {profile?.initials ?? "U"}
+        </div>
+        <div className="flex flex-col text-left">
+          <span className="text-xs font-medium text-foreground">{profile?.name ?? "User"}</span>
+          <span className="text-[10px] text-muted-foreground">Switch profile</span>
+        </div>
+      </button>
+    </div>
+  );
+}
+
 export function AppSidebar({ activeView, onViewChange, onAgentClick }: SidebarProps) {
   const { data: dbAgents } = useAgents();
   const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
