@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAgents } from "@/hooks/use-agents";
+import { useAuth } from "@/contexts/AuthContext";
 import { MOCK_AGENTS, TEAM_LABELS } from "@/constants/agents";
 import type { Team } from "@/types/layaa";
 import {
@@ -132,17 +133,7 @@ export function AppSidebar({ activeView, onViewChange, onAgentClick }: SidebarPr
         })}
       </div>
 
-      <div className="px-3 py-3 border-t border-border">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-semibold">
-            A
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-medium text-foreground">Abhimanyu</span>
-            <span className="text-[10px] text-muted-foreground">Admin</span>
-          </div>
-        </div>
-      </div>
+      <ProfileFooter />
     </aside>
   );
 }
