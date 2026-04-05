@@ -38,7 +38,7 @@ Keep answers clear, concise, and professional. Use markdown formatting when help
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: model || "google/gemini-3-flash-preview",
+        model: resolvedModel,
         messages: [
           { role: "system", content: defaultSystem },
           ...messages,
