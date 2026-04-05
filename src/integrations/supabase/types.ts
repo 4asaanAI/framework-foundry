@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_kbs: {
+        Row: {
+          agent_id: string
+          content: string
+          created_at: string
+          file_size: number
+          file_type: string
+          filename: string
+          id: string
+          storage_path: string | null
+        }
+        Insert: {
+          agent_id: string
+          content?: string
+          created_at?: string
+          file_size?: number
+          file_type?: string
+          filename: string
+          id?: string
+          storage_path?: string | null
+        }
+        Update: {
+          agent_id?: string
+          content?: string
+          created_at?: string
+          file_size?: number
+          file_type?: string
+          filename?: string
+          id?: string
+          storage_path?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_kbs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_memories: {
         Row: {
           agent_id: string
@@ -430,6 +471,33 @@ export type Database = {
           name?: string
           provider?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      direct_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_read: boolean
+          receiver_id: string
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          receiver_id: string
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          receiver_id?: string
+          sender_id?: string
         }
         Relationships: []
       }
