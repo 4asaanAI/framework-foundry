@@ -477,11 +477,40 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
         mention_agent_id: mentionedAgent?.id ?? null,
       });
       const userMsg = message.trim();
-      setMessage(""); setAttachedFiles([]); setMentionedAgent(null);
+      setMessage(""); setAttachedFiles([]); 
       localStorage.removeItem(`draft_${activeAgent.id}`);
       queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
 
-      // Fetch all messages for context and stream AI response
+      // If there's a mentioned agent, delegate to them first
+      if (mentionedAgent && mentionedAgent.id !== activeAgent.id) {
+        const delegateUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delegate-task`;
+        try {
+          const delegateResp = await fetch(delegateUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({
+              fromAgentId: activeAgent.id,
+              toAgentId: mentionedAgent.id,
+              task: userMsg,
+              conversationId,
+              profileId: user?.id,
+            }),
+          });
+          if (delegateResp.ok) {
+            queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+            queryClient.invalidateQueries({ queryKey: ["agents"] });
+            queryClient.invalidateQueries({ queryKey: ["token-usage"] });
+          }
+        } catch (e) {
+          console.error("Delegate error:", e);
+        }
+      }
+      setMentionedAgent(null);
+
+      // Fetch all messages for context and stream primary agent AI response
       const { data: allMsgs } = await supabase.from("messages").select("*")
         .eq("conversation_id", conversationId).order("created_at", { ascending: true });
       
