@@ -1,12 +1,24 @@
-import { FolderKanban, Plus, Users } from "lucide-react";
+import { useProjects } from "@/hooks/use-projects";
+import { FolderKanban, Plus, Users, Loader2 } from "lucide-react";
 
 const MOCK_PROJECTS = [
-  { id: "1", name: "EduFlow", description: "AI-powered education platform for client delivery", agents: ["dev", "neha", "kabir"], status: "active", progress: 78 },
-  { id: "2", name: "Layaa Website", description: "Company website redesign and content update", agents: ["mira", "priya"], status: "active", progress: 45 },
-  { id: "3", name: "Client Onboarding", description: "Sales pipeline and lead management automation", agents: ["rishi", "arjun"], status: "active", progress: 30 },
+  { id: "1", name: "EduFlow", description: "AI-powered education platform for client delivery", agent_count: 3, is_active: true },
+  { id: "2", name: "Layaa Website", description: "Company website redesign and content update", agent_count: 2, is_active: true },
+  { id: "3", name: "Client Onboarding", description: "Sales pipeline and lead management automation", agent_count: 2, is_active: true },
 ];
 
 export function ProjectsView() {
+  const { data: dbProjects, isLoading } = useProjects();
+  const projects = dbProjects && dbProjects.length > 0 ? dbProjects : MOCK_PROJECTS;
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-y-auto">
       <div className="flex items-center justify-between px-6 py-5 border-b border-border">
@@ -19,7 +31,7 @@ export function ProjectsView() {
         </button>
       </div>
       <div className="px-6 py-4 space-y-3">
-        {MOCK_PROJECTS.map((project) => (
+        {projects.map((project: any) => (
           <div key={project.id} className="rounded-xl border border-border bg-card p-5 hover:glow-border transition-all cursor-pointer">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3">
@@ -31,15 +43,14 @@ export function ProjectsView() {
                   <p className="text-xs text-muted-foreground mt-0.5">{project.description}</p>
                 </div>
               </div>
-              <span className="text-xs font-mono text-muted-foreground">{project.progress}%</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full ${project.is_active ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
+                {project.is_active ? "Active" : "Inactive"}
+              </span>
             </div>
             <div className="mt-4 flex items-center gap-4">
-              <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                <div className="h-full rounded-full bg-primary/60" style={{ width: `${project.progress}%` }} />
-              </div>
               <div className="flex items-center gap-1 text-muted-foreground">
                 <Users className="h-3.5 w-3.5" />
-                <span className="text-[11px]">{project.agents.length}</span>
+                <span className="text-[11px]">{project.agent_count ?? 0} agents</span>
               </div>
             </div>
           </div>

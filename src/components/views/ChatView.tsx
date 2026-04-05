@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAgents } from "@/hooks/use-agents";
 import { MOCK_AGENTS } from "@/constants/agents";
 import { Send, Paperclip, Slash, AtSign } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,11 +13,12 @@ const MOCK_MESSAGES = [
 
 export function ChatView() {
   const [message, setMessage] = useState("");
-  const activeAgent = MOCK_AGENTS[0]; // Kabir
+  const { data: dbAgents } = useAgents();
+  const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
+  const activeAgent = agents[0];
 
   return (
     <div className="flex flex-col h-full">
-      {/* Messages — centered, max 900px */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[900px] mx-auto px-6 py-4 space-y-4">
           {MOCK_MESSAGES.map((msg) => (
@@ -56,7 +58,6 @@ export function ChatView() {
         </div>
       </div>
 
-      {/* Input — sticky bottom */}
       <div className="border-t border-border shrink-0">
         <div className="max-w-[900px] mx-auto px-6 py-3">
           <div className="flex items-end gap-2 rounded-lg bg-card border border-border p-2">
@@ -72,7 +73,7 @@ export function ChatView() {
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Message Kabir... (/ for skills, @ to mention)"
+              placeholder={`Message ${activeAgent.name}... (/ for skills, @ to mention)`}
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground resize-none outline-none min-h-[36px] max-h-[120px] py-2"
               rows={1}
             />
