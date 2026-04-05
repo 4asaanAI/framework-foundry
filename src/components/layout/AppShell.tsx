@@ -10,6 +10,7 @@ import { TasksView } from "@/components/views/TasksView";
 import { DashboardView } from "@/components/views/DashboardView";
 import { ApprovalsView } from "@/components/views/ApprovalsView";
 import { SettingsView } from "@/components/views/SettingsView";
+import { AnalyticsView } from "@/components/views/AnalyticsView";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAgents } from "@/hooks/use-agents";
 import { MOCK_AGENTS } from "@/constants/agents";
@@ -38,6 +39,7 @@ export function AppShell() {
       case "projects": return <ProjectsView />;
       case "tasks": return <TasksView />;
       case "dashboard": return <DashboardView />;
+      case "analytics": return <AnalyticsView />;
       case "approvals": return <ApprovalsView />;
       case "settings": return <SettingsView />;
       default: return <ChatView selectedAgentId={selectedAgentId} />;
