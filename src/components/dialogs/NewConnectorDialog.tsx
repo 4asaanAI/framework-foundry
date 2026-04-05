@@ -30,9 +30,9 @@ export function NewConnectorDialog({ open, onOpenChange, defaultType = "mcp" }: 
       toast.error("Name is required");
       return;
     }
-    let config: Record<string, unknown>;
+    let config: Record<string, string>;
     try {
-      config = JSON.parse(configJson);
+      config = JSON.parse(configJson) as Record<string, string>;
     } catch {
       toast.error("Config must be valid JSON");
       return;
