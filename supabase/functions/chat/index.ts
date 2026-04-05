@@ -12,20 +12,19 @@ serve(async (req) => {
   try {
     const { messages, model, agentName, agentRole, systemPrompt, agentId, conversationId, profileId } = await req.json();
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const sb = createClient(supabaseUrl, serviceKey);
+
     // Resolve which API key + base URL to use
     let apiKey = Deno.env.get("LOVABLE_API_KEY");
     let baseUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
-    let customKeyUsed = false;
 
     // Check if agent has a custom API key
     if (agentId) {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const sb = createClient(supabaseUrl, serviceKey);
       const { data: agent } = await sb.from("agents").select("custom_api_key, custom_api_base_url").eq("id", agentId).single();
       if (agent?.custom_api_key && agent.custom_api_key.trim() !== "") {
         apiKey = agent.custom_api_key;
-        customKeyUsed = true;
         if (agent.custom_api_base_url && agent.custom_api_base_url.trim() !== "") {
           baseUrl = agent.custom_api_base_url;
         }
@@ -34,8 +33,49 @@ serve(async (req) => {
 
     if (!apiKey) throw new Error("No API key available — configure LOVABLE_API_KEY or set a custom key on the agent");
 
+    // Fetch agent memories for context
+    let memoryContext = "";
+    let kbContext = "";
+    if (agentId) {
+      const { data: memories } = await sb.from("agent_memories")
+        .select("content, category, confidence")
+        .eq("agent_id", agentId)
+        .eq("is_compressed", false)
+        .order("created_at", { ascending: false })
+        .limit(15);
+
+      if (memories && memories.length > 0) {
+        memoryContext = "\n\nYour relevant memories:\n" +
+          memories.map(m => `- [${m.category}] (confidence: ${m.confidence}) ${m.content}`).join("\n");
+      }
+
+      // Fetch KB docs
+      const { data: kbDocs } = await sb.from("agent_kbs")
+        .select("filename, content")
+        .eq("agent_id", agentId)
+        .limit(5);
+
+      if (kbDocs && kbDocs.length > 0) {
+        kbContext = "\n\nYour knowledge base documents:\n" +
+          kbDocs.map(d => `[${d.filename}] ${d.content.slice(0, 3000)}`).join("\n---\n");
+      }
+
+      // Fetch active tasks assigned to this agent
+      const { data: tasks } = await sb.from("tasks")
+        .select("title, status, description, due_date")
+        .eq("assigned_agent_id", agentId)
+        .in("status", ["pending", "running", "awaiting_approval"])
+        .limit(10);
+
+      if (tasks && tasks.length > 0) {
+        memoryContext += "\n\nYour active tasks:\n" +
+          tasks.map(t => `- [${t.status}] ${t.title}${t.due_date ? ` (due: ${t.due_date})` : ""}`).join("\n");
+      }
+    }
+
     const defaultSystem = `You are ${agentName || "an AI assistant"}, whose role is: ${agentRole || "helpful assistant"}. ${systemPrompt || ""}
-Keep answers clear, concise, and professional. Use markdown formatting when helpful.`;
+Keep answers clear, concise, and professional. Use markdown formatting when helpful.
+When you learn important facts, decisions, or preferences from the conversation, remember them — they will be extracted automatically.${memoryContext}${kbContext}`;
 
     // Normalize model names
     const MODEL_MAP: Record<string, string> = {
@@ -65,7 +105,6 @@ Keep answers clear, concise, and professional. Use markdown formatting when help
           ...messages,
         ],
         stream: true,
-        // Include usage info in stream for token tracking
         stream_options: { include_usage: true },
       }),
     });
@@ -77,7 +116,7 @@ Keep answers clear, concise, and professional. Use markdown formatting when help
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add funds to your Lovable AI workspace." }), {
+        return new Response(JSON.stringify({ error: "Payment required, please add funds." }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
@@ -88,7 +127,7 @@ Keep answers clear, concise, and professional. Use markdown formatting when help
       });
     }
 
-    // We need to intercept the stream to capture usage stats at the end
+    // Intercept stream to capture usage stats
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
     const reader = response.body!.getReader();
@@ -99,6 +138,7 @@ Keep answers clear, concise, and professional. Use markdown formatting when help
       let textBuffer = "";
       let totalIn = 0;
       let totalOut = 0;
+      let fullContent = "";
 
       try {
         while (true) {
@@ -108,9 +148,7 @@ Keep answers clear, concise, and professional. Use markdown formatting when help
           const chunk = decoder.decode(value, { stream: true });
           textBuffer += chunk;
           
-          // Parse for usage info
           let newlineIndex: number;
-          const processedLines: string[] = [];
           while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
             const line = textBuffer.slice(0, newlineIndex);
             textBuffer = textBuffer.slice(newlineIndex + 1);
@@ -122,11 +160,12 @@ Keep answers clear, concise, and professional. Use markdown formatting when help
                   totalIn = parsed.usage.prompt_tokens || 0;
                   totalOut = parsed.usage.completion_tokens || 0;
                 }
-              } catch { /* partial JSON, pass through */ }
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) fullContent += content;
+              } catch { /* partial JSON */ }
             }
           }
           
-          // Pass through to client
           await writer.write(value);
         }
         
@@ -140,6 +179,8 @@ Keep answers clear, concise, and professional. Use markdown formatting when help
                   totalIn = parsed.usage.prompt_tokens || 0;
                   totalOut = parsed.usage.completion_tokens || 0;
                 }
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) fullContent += content;
               } catch { /* ignore */ }
             }
           }
@@ -147,19 +188,13 @@ Keep answers clear, concise, and professional. Use markdown formatting when help
 
         // After stream completes, update agent budget and log usage
         if (agentId && (totalIn > 0 || totalOut > 0)) {
-          const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-          const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-          const sb = createClient(supabaseUrl, serviceKey);
-          
           const totalTokens = totalIn + totalOut;
           
-          // Update agent budget_used
           const { data: agent } = await sb.from("agents").select("budget_used").eq("id", agentId).single();
           if (agent) {
             await sb.from("agents").update({ budget_used: agent.budget_used + totalTokens }).eq("id", agentId);
           }
           
-          // Log usage
           if (profileId) {
             await sb.from("token_usage_log").insert({
               agent_id: agentId,
@@ -168,8 +203,54 @@ Keep answers clear, concise, and professional. Use markdown formatting when help
               model: resolvedModel,
               tokens_in: totalIn,
               tokens_out: totalOut,
-              cost_usd: (totalIn * 0.00001 + totalOut * 0.00003), // approximate pricing
+              cost_usd: (totalIn * 0.00001 + totalOut * 0.00003),
             });
+          }
+        }
+
+        // Auto-extract memories from the agent's response (self-memory update)
+        if (agentId && fullContent && fullContent.length > 50) {
+          try {
+            const extractKey = Deno.env.get("LOVABLE_API_KEY");
+            if (extractKey) {
+              const extractResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${extractKey}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  model: "google/gemini-2.5-flash-lite",
+                  messages: [{
+                    role: "system",
+                    content: `You are a memory extraction agent. Analyze the AI assistant's response and extract important facts, decisions, commitments, or learnings that should be remembered for future conversations. Return ONLY valid JSON: {"memories": [{"content": "...", "category": "decision|client_info|process|preference|company|market_data|conversation_handoff", "confidence": 0.0-1.0}]}. If nothing worth remembering, return {"memories": []}.`,
+                  }, {
+                    role: "user",
+                    content: fullContent,
+                  }],
+                }),
+              });
+
+              if (extractResp.ok) {
+                const extractData = await extractResp.json();
+                const extractContent = extractData.choices?.[0]?.message?.content || "";
+                const jsonMatch = extractContent.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                  const extracted = JSON.parse(jsonMatch[0]);
+                  const validCats = ["client_info", "decision", "market_data", "process", "preference", "company", "conversation_handoff"];
+                  for (const mem of (extracted.memories || [])) {
+                    if (mem.confidence >= 0.6) {
+                      await sb.from("agent_memories").insert({
+                        agent_id: agentId,
+                        content: mem.content,
+                        category: validCats.includes(mem.category) ? mem.category : "preference",
+                        confidence: Math.max(0, Math.min(1, mem.confidence)),
+                        memory_type: "personal",
+                      });
+                    }
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.error("Memory auto-extract error:", e);
           }
         }
       } catch (e) {

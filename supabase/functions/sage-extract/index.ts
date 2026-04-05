@@ -24,7 +24,25 @@ serve(async (req) => {
       });
     }
 
-    // Use AI to extract meaningful facts/decisions from the message
+    // Fetch existing memories to avoid duplicates
+    const { data: existingMemories } = await supabase.from("agent_memories")
+      .select("content")
+      .eq("agent_id", agent_id)
+      .eq("is_compressed", false)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    const existingContext = existingMemories?.map(m => m.content).join("\n") || "";
+
+    // Fetch agent's active tasks for context
+    const { data: agentTasks } = await supabase.from("tasks")
+      .select("title, status, description")
+      .eq("assigned_agent_id", agent_id)
+      .in("status", ["pending", "running", "awaiting_approval"])
+      .limit(5);
+
+    const taskContext = agentTasks?.map(t => `Task: ${t.title} [${t.status}]`).join("\n") || "";
+
     let extracted: { memories: { content: string; category: string; confidence: number }[] } = { memories: [] };
 
     if (LOVABLE_API_KEY) {
@@ -39,7 +57,17 @@ serve(async (req) => {
           messages: [
             {
               role: "system",
-              content: `You are Sage, a memory extraction agent. Analyze the message and extract meaningful facts, decisions, client information, or process knowledge. Return a JSON array of memories. Each memory should have: content (the extracted fact), category (one of: client_info, decision, market_data, process, preference, company, conversation_handoff), confidence (0.0-1.0 based on how certain/important it is). Only extract genuinely useful information. If nothing meaningful, return empty array. Respond ONLY with valid JSON: {"memories": [...]}`,
+              content: `You are Sage, a memory extraction agent. Analyze the message and extract meaningful facts, decisions, client information, or process knowledge. 
+
+IMPORTANT: Do NOT extract information that is already known. Here are existing memories:
+${existingContext}
+
+Current active tasks:
+${taskContext}
+
+Return a JSON array of NEW memories only. Each memory should have: content (the extracted fact), category (one of: client_info, decision, market_data, process, preference, company, conversation_handoff), confidence (0.0-1.0).
+Only extract genuinely useful, NEW information. If nothing new, return empty array.
+Respond ONLY with valid JSON: {"memories": [...]}`,
             },
             { role: "user", content: message_content },
           ],
@@ -50,7 +78,6 @@ serve(async (req) => {
         const aiData = await aiResp.json();
         const content = aiData.choices?.[0]?.message?.content || "";
         try {
-          // Try to parse JSON from the response
           const jsonMatch = content.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             extracted = JSON.parse(jsonMatch[0]);
