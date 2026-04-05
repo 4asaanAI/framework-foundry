@@ -595,70 +595,89 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
   const hasSplitScreen = !!mentionedAgent && mentionedAgent.id !== activeAgent.id;
 
   const renderMessages = () => {
-    return displayMessages.map((msg: any) => (
-      <div key={msg.id} className={cn("flex gap-3 animate-fade-in group", msg.role === "user" && "flex-row-reverse")}>
-        {msg.role !== "user" && (
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 mt-1 border-2 border-border"
-            style={{ backgroundColor: activeAgent.avatar_color + "20", color: activeAgent.avatar_color }}>
-            {activeAgent.avatar_initials}
-          </div>
-        )}
-        {msg.role === "user" && (
-          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-semibold shrink-0 mt-1">
-            {profile?.initials ?? "U"}
-          </div>
-        )}
-        <div className={cn("max-w-[70%] rounded-lg px-4 py-2 relative", msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-card text-foreground")}>
-          {msg.is_pinned && <Pin className="h-3 w-3 text-warning absolute -top-1 -right-1" />}
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-semibold">{msg.role === "user" ? (profile?.name ?? "You") : activeAgent.name}</span>
-            <span className="text-[10px] opacity-60">{new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-          </div>
-          <div className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
-            <ReactMarkdown>{msg.content}</ReactMarkdown>
-          </div>
-          {msg.attachments && Array.isArray(msg.attachments) && (msg.attachments as any[]).length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {(msg.attachments as any[]).map((att: any, i: number) => (
-                <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-2 py-1 rounded bg-background/50 text-[10px] hover:bg-background transition-colors">
-                  {getFileIcon(att.type || "")}
-                  <span className="truncate max-w-[120px]">{att.name}</span>
-                </a>
-              ))}
+    return displayMessages.map((msg: any) => {
+      const isMentionResponse = msg.role === "mention_response";
+      const mentionAgent = isMentionResponse ? agents.find(a => a.id === msg.mention_agent_id) : null;
+      const displayAgent = isMentionResponse && mentionAgent ? mentionAgent : activeAgent;
+
+      return (
+        <div key={msg.id} className={cn("flex gap-3 animate-fade-in group", msg.role === "user" && "flex-row-reverse")}>
+          {msg.role !== "user" && (
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 mt-1 border-2 border-border"
+              style={{ backgroundColor: displayAgent.avatar_color + "20", color: displayAgent.avatar_color }}>
+              {displayAgent.avatar_initials}
             </div>
           )}
-          {(msg.tokens_in > 0 || msg.tokens_out > 0) && (
-            <div className="flex items-center gap-3 mt-2 text-[10px] opacity-50">
-              <span>💰 {msg.tokens_in + msg.tokens_out} tokens</span>
+          {msg.role === "user" && (
+            <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-semibold shrink-0 mt-1">
+              {profile?.initials ?? "U"}
             </div>
           )}
-          {/* Message action buttons */}
-          <div className="flex items-center gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            {msg.role !== "user" && (
-              <>
-                <button onClick={() => handleRate(msg.id, 1)}
-                  className={cn("p-0.5 rounded hover:bg-success/10 transition-colors", msg.rating === 1 ? "text-success" : "text-muted-foreground")}>
-                  <ThumbsUp className="h-3 w-3" />
-                </button>
-                <button onClick={() => handleRate(msg.id, -1)}
-                  className={cn("p-0.5 rounded hover:bg-destructive/10 transition-colors", msg.rating === -1 ? "text-destructive" : "text-muted-foreground")}>
-                  <ThumbsDown className="h-3 w-3" />
-                </button>
-              </>
+          <div className={cn("max-w-[70%] rounded-lg px-4 py-2 relative",
+            msg.role === "user" ? "bg-primary text-primary-foreground" :
+            isMentionResponse ? "bg-accent/10 border border-accent/20 text-foreground" :
+            "bg-card text-foreground"
+          )}>
+            {msg.is_pinned && <Pin className="h-3 w-3 text-warning absolute -top-1 -right-1" />}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-semibold">
+                {msg.role === "user" ? (profile?.name ?? "You") : displayAgent.name}
+              </span>
+              {isMentionResponse && <span className="text-[9px] px-1.5 py-0.5 rounded bg-accent/20 text-accent">mention response</span>}
+              <span className="text-[10px] opacity-60">{new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+            </div>
+            <div className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+              <ReactMarkdown>{msg.content}</ReactMarkdown>
+            </div>
+            {msg.attachments && Array.isArray(msg.attachments) && (msg.attachments as any[]).length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {(msg.attachments as any[]).map((att: any, i: number) => (
+                  <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-2 py-1 rounded bg-background/50 text-[10px] hover:bg-background transition-colors">
+                    {getFileIcon(att.type || "")}
+                    <span className="truncate max-w-[120px]">{att.name}</span>
+                  </a>
+                ))}
+              </div>
             )}
-            <button onClick={() => handlePin(msg.id, msg.is_pinned)}
-              className={cn("p-0.5 rounded hover:bg-warning/10 transition-colors", msg.is_pinned ? "text-warning" : "text-muted-foreground")}>
-              <Pin className="h-3 w-3" />
-            </button>
-            <button onClick={() => handleFork(msg.id)}
-              className="p-0.5 rounded hover:bg-accent/10 transition-colors text-muted-foreground" title="Branch from here">
-              <GitBranch className="h-3 w-3" />
-            </button>
+            {(msg.tokens_in > 0 || msg.tokens_out > 0) && (
+              <div className="flex items-center gap-3 mt-2 text-[10px] opacity-50">
+                <span>💰 {msg.tokens_in + msg.tokens_out} tokens</span>
+              </div>
+            )}
+            {/* Message action buttons */}
+            <div className="flex items-center gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+              {msg.role !== "user" && (
+                <>
+                  <button onClick={() => handleRate(msg.id, 1)}
+                    className={cn("p-0.5 rounded hover:bg-success/10 transition-colors", msg.rating === 1 ? "text-success" : "text-muted-foreground")}>
+                    <ThumbsUp className="h-3 w-3" />
+                  </button>
+                  <button onClick={() => handleRate(msg.id, -1)}
+                    className={cn("p-0.5 rounded hover:bg-destructive/10 transition-colors", msg.rating === -1 ? "text-destructive" : "text-muted-foreground")}>
+                    <ThumbsDown className="h-3 w-3" />
+                  </button>
+                  <button onClick={() => {
+                    navigator.clipboard.writeText(msg.content);
+                    toast.success("Copied to clipboard");
+                  }} className="p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground" title="Copy">
+                    <Download className="h-3 w-3" />
+                  </button>
+                </>
+              )}
+              <button onClick={() => handlePin(msg.id, msg.is_pinned)}
+                className={cn("p-0.5 rounded hover:bg-warning/10 transition-colors", msg.is_pinned ? "text-warning" : "text-muted-foreground")}>
+                <Pin className="h-3 w-3" />
+              </button>
+              <button onClick={() => handleFork(msg.id)}
+                className="p-0.5 rounded hover:bg-accent/10 transition-colors text-muted-foreground" title="Branch from here">
+                <GitBranch className="h-3 w-3" />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    ));
+      );
+    });
   };
 
   const renderPickerList = (items: any[], type: "skill" | "command" | "mention") => (
