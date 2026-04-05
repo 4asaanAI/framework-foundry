@@ -28,6 +28,7 @@ import {
   Check,
   X,
   MoreHorizontal,
+  BarChart3,
 } from "lucide-react";
 import { EditProfileDialog } from "@/components/dialogs/EditProfileDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -44,6 +45,7 @@ const NAV_ITEMS = [
   { id: "projects", label: "Projects", icon: FolderKanban },
   { id: "tasks", label: "Tasks", icon: CheckSquare },
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "approvals", label: "Approvals", icon: Shield },
   { id: "settings", label: "Settings", icon: Settings },
 ];
