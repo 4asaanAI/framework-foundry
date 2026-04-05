@@ -78,21 +78,6 @@ serve(async (req) => {
       if (!error && data) inserted.push(data.id);
     }
 
-    // Compress old memories (>50 per agent → mark oldest as compressed)
-    const { count } = await supabase.from("agent_memories")
-      .select("*", { count: "exact", head: true })
-      .eq("agent_id", agent_id).eq("is_compressed", false);
-
-    if (count && count > 50) {
-      const { data: oldest } = await supabase.from("agent_memories")
-        .select("id").eq("agent_id", agent_id).eq("is_compressed", false)
-        .order("created_at", { ascending: true }).limit(count - 40);
-
-      for (const mem of (oldest ?? [])) {
-        await supabase.from("agent_memories").update({ is_compressed: true }).eq("id", mem.id);
-      }
-    }
-
     // Log extraction
     await supabase.from("audit_log").insert({
       actor_id: "sage-system", actor_type: "agent",
