@@ -1,39 +1,43 @@
 
-## What's currently non-functional (and what we'll fix)
+## Plan: Full Platform Functionality Pass
 
-### 1. **Token Transfer Between Agents** (New feature)
-- Add a "Transfer Tokens" button on each agent card
-- Dialog to select source agent → target agent + amount
-- Updates `budget_used` / `budget_tokens` in the database
+### Phase 1 — Backend Tables & Storage
+- Create missing tables from the document: `audit_log`, `db_health_log`, `message_annotations`, `failed_writes`
+- Add `prompt_history` JSON column to agents table (for version tracking)
+- Create a storage bucket `chat-attachments` for file uploads in chat
+- Add `attachments` JSON column to `messages` table for file references
 
-### 2. **Settings View — Make all 6 sections functional**
-- **LLM Providers**: Form to configure provider name, API key reference, default model — stored in a `connectors` table (type = `llm_provider`)
-- **Credential Vault**: List secrets by name (we can't store actual keys client-side, but we can track key names + status in `connectors` type = `credential`)
-- **Database**: Show current connection status (read-only info panel)
-- **Webhooks**: CRUD for webhook URLs stored in `connectors` (type = `webhook`)
-- **Connectors & MCP**: CRUD for MCP servers stored in `connectors` table
-- **Security**: Read-only security checklist/status panel
+### Phase 2 — Dark/Light Theme Toggle
+- Add a light mode `:root` theme in `index.css` alongside existing dark theme
+- Add theme toggle button in the header using `next-themes`
+- Ensure all views, cards, dialogs respect the theme
 
-### 3. **Chat View — Make functional**
-- Wire send button to create a conversation + insert messages in DB
-- Display real messages from DB for selected conversation
-- Conversation list in sidebar from DB
+### Phase 3 — Notification Bell (Functional)
+- Wire the Bell icon to show a dropdown/popover with real notifications from the `notifications` table
+- Show unread count badge
+- Mark as read on click
 
-### 4. **Projects View — Make "New Project" work**
-- Dialog to create a new project (name, description, instructions)
-- Assign agents to project via `project_agents` table
+### Phase 4 — Enhanced Chat Box (per reference image)
+- Bottom toolbar with: file attach (+), skills (/), connectors, plugins, project selector
+- "+" button opens a menu: "Add files or photos", "Skills →", "Connectors →", "Add plugins..."
+- Project selector dropdown ("Work in a project")
+- Model selector display (e.g. "Sonnet 4.6")
+- File upload: create storage bucket, upload files, attach to message
 
-### 5. **Tasks View — Make task creation work**
-- "New Task" button + dialog (title, description, assign agent, due date)
-- Status update buttons on each task
+### Phase 5 — Slash (/) and @ Commands
+- `/` mid-sentence shows skill picker (role-specific tools from `skills` table)
+- `@` mid-sentence shows agent mention picker (enriched with role info)
+- Backend: slash-prefixed keywords from skills `trigger_keywords`
 
-### 6. **Agents View — Agent detail/edit**
-- Click agent card → detail panel or dialog to edit prompt, model, budget
-- Token transfer button here too
+### Phase 6 — Agent Edit: KB, Memory & More
+- Expand EditAgentDialog to include:
+  - KB management (upload/view/delete files from `project_kbs`)
+  - Memory viewer/editor (CRUD on `agent_memories`)
+  - Prompt history viewer
+  - Status toggle, avatar edit
 
-### 7. **Sidebar — Use DB agents instead of mock**
-- Pull agents from `useAgents()` hook instead of `MOCK_AGENTS`
+### Phase 7 — Header Layout (per reference image)
+- Match the top bar layout from the uploaded screenshot
+- Notification popover, theme toggle, profile avatar
 
----
-
-**Recommended approach**: Tackle in this order — Settings → Token Transfer → Projects CRUD → Tasks CRUD → Chat wiring → Sidebar DB agents. Each step makes a visible section functional.
+This is a lot of work — I'll implement as much as possible in order of priority.
