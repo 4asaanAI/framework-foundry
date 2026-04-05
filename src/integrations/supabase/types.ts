@@ -107,6 +107,7 @@ export type Database = {
           is_active: boolean
           llm_provider: string
           name: string
+          prompt_history: Json
           prompt_version: number
           status: Database["public"]["Enums"]["agent_status"]
           system_prompt: string
@@ -128,6 +129,7 @@ export type Database = {
           is_active?: boolean
           llm_provider?: string
           name: string
+          prompt_history?: Json
           prompt_version?: number
           status?: Database["public"]["Enums"]["agent_status"]
           system_prompt?: string
@@ -149,6 +151,7 @@ export type Database = {
           is_active?: boolean
           llm_provider?: string
           name?: string
+          prompt_history?: Json
           prompt_version?: number
           status?: Database["public"]["Enums"]["agent_status"]
           system_prompt?: string
@@ -210,6 +213,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string
+          actor_type: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          payload: Json
+          target_id: string | null
+          target_table: string
+        }
+        Insert: {
+          action?: string
+          actor_id?: string
+          actor_type?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          payload?: Json
+          target_id?: string | null
+          target_table?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          actor_type?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          payload?: Json
+          target_id?: string | null
+          target_table?: string
+        }
+        Relationships: []
       }
       connectors: {
         Row: {
@@ -407,6 +446,7 @@ export type Database = {
       }
       messages: {
         Row: {
+          attachments: Json
           content: string
           conversation_id: string
           cost_usd: number
@@ -422,6 +462,7 @@ export type Database = {
           tokens_out: number
         }
         Insert: {
+          attachments?: Json
           content: string
           conversation_id: string
           cost_usd?: number
@@ -437,6 +478,7 @@ export type Database = {
           tokens_out?: number
         }
         Update: {
+          attachments?: Json
           content?: string
           conversation_id?: string
           cost_usd?: number

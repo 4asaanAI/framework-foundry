@@ -3,8 +3,57 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light theme */
   :root {
-    /* Slate-based dark mode per Layaa OS UI Guidelines */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+
+    --card: 210 40% 96%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 192 91% 36%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 210 40% 98%;
+    --sidebar-foreground: 215 16% 47%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 221 83% 53%;
+
+    --warning: 48 96% 53%;
+    --warning-foreground: 222 47% 11%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --info: 192 91% 36%;
+    --info-foreground: 0 0% 100%;
+  }
+
+  /* Dark theme */
+  .dark {
     --background: 222 47% 11%;
     --foreground: 210 40% 98%;
 
@@ -14,7 +63,6 @@
     --popover: 217 33% 17%;
     --popover-foreground: 210 40% 98%;
 
-    /* Blue-600 primary per guidelines */
     --primary: 221 83% 53%;
     --primary-foreground: 210 40% 98%;
 
