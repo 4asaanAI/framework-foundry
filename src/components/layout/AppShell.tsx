@@ -42,7 +42,7 @@ export function AppShell() {
       case "dashboard": return <DashboardView />;
       case "analytics": return <AnalyticsView />;
       case "approvals": return <ApprovalsView />;
-      case "integrations": return <IntegrationsView />;
+      case "customize": return <CustomizeView />;
       case "settings": return <SettingsView />;
       default: return <ChatView selectedAgentId={selectedAgentId} />;
     }
