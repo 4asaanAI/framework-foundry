@@ -289,6 +289,8 @@ export type Database = {
       conversations: {
         Row: {
           agent_id: string
+          branch_label: string | null
+          branch_parent_id: string | null
           created_at: string
           id: string
           is_archived: boolean
@@ -302,6 +304,8 @@ export type Database = {
         }
         Insert: {
           agent_id: string
+          branch_label?: string | null
+          branch_parent_id?: string | null
           created_at?: string
           id?: string
           is_archived?: boolean
@@ -315,6 +319,8 @@ export type Database = {
         }
         Update: {
           agent_id?: string
+          branch_label?: string | null
+          branch_parent_id?: string | null
           created_at?: string
           id?: string
           is_archived?: boolean
@@ -332,6 +338,13 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_branch_parent_id_fkey"
+            columns: ["branch_parent_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
           {
@@ -447,6 +460,7 @@ export type Database = {
       messages: {
         Row: {
           attachments: Json
+          branch_index: number | null
           content: string
           conversation_id: string
           cost_usd: number
@@ -455,6 +469,7 @@ export type Database = {
           is_pinned: boolean
           mention_agent_id: string | null
           model: string
+          parent_message_id: string | null
           rating: number | null
           response_time_ms: number
           role: Database["public"]["Enums"]["message_role"]
@@ -463,6 +478,7 @@ export type Database = {
         }
         Insert: {
           attachments?: Json
+          branch_index?: number | null
           content: string
           conversation_id: string
           cost_usd?: number
@@ -471,6 +487,7 @@ export type Database = {
           is_pinned?: boolean
           mention_agent_id?: string | null
           model?: string
+          parent_message_id?: string | null
           rating?: number | null
           response_time_ms?: number
           role: Database["public"]["Enums"]["message_role"]
@@ -479,6 +496,7 @@ export type Database = {
         }
         Update: {
           attachments?: Json
+          branch_index?: number | null
           content?: string
           conversation_id?: string
           cost_usd?: number
@@ -487,6 +505,7 @@ export type Database = {
           is_pinned?: boolean
           mention_agent_id?: string | null
           model?: string
+          parent_message_id?: string | null
           rating?: number | null
           response_time_ms?: number
           role?: Database["public"]["Enums"]["message_role"]
@@ -506,6 +525,13 @@ export type Database = {
             columns: ["mention_agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_parent_message_id_fkey"
+            columns: ["parent_message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
         ]
