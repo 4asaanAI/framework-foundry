@@ -28,6 +28,8 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
   const [budgetTokens, setBudgetTokens] = useState(0);
   const [newMemory, setNewMemory] = useState("");
   const [newMemoryCategory, setNewMemoryCategory] = useState("preference");
+  const [customApiKey, setCustomApiKey] = useState("");
+  const [customApiBaseUrl, setCustomApiBaseUrl] = useState("");
 
   const resetForm = (a: AgentRow) => {
     setName(a.name);
@@ -36,6 +38,8 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
     setDefaultModel(a.default_model);
     setLlmProvider(a.llm_provider);
     setBudgetTokens(a.budget_tokens);
+    setCustomApiKey((a as any).custom_api_key || "");
+    setCustomApiBaseUrl((a as any).custom_api_base_url || "");
   };
 
   useEffect(() => {
@@ -72,6 +76,8 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
       default_model: defaultModel,
       llm_provider: llmProvider,
       budget_tokens: budgetTokens,
+      custom_api_key: customApiKey,
+      custom_api_base_url: customApiBaseUrl,
     };
 
     if (systemPrompt !== agent.system_prompt) {
@@ -167,6 +173,21 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
             <div>
               <Label>Token Budget</Label>
               <Input type="number" value={budgetTokens} onChange={(e) => setBudgetTokens(Number(e.target.value))} />
+            </div>
+            <div className="border-t border-border pt-3 mt-2">
+              <p className="text-xs font-semibold text-foreground mb-2">Custom LLM Configuration (Optional)</p>
+              <p className="text-[10px] text-muted-foreground mb-3">Leave blank to use the platform's default AI. Set a custom API key to use your own LLM provider.</p>
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs">Custom API Key</Label>
+                  <Input type="password" value={customApiKey} onChange={(e) => setCustomApiKey(e.target.value)} placeholder="sk-... or API key for any provider" />
+                </div>
+                <div>
+                  <Label className="text-xs">Custom API Base URL</Label>
+                  <Input value={customApiBaseUrl} onChange={(e) => setCustomApiBaseUrl(e.target.value)} placeholder="https://api.openai.com/v1/chat/completions" />
+                  <p className="text-[9px] text-muted-foreground mt-1">Must be OpenAI-compatible endpoint. Leave blank to use Lovable AI gateway.</p>
+                </div>
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>

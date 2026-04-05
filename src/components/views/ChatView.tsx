@@ -210,6 +210,9 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
           agentName: activeAgent.name,
           agentRole: activeAgent.canonical_role,
           systemPrompt: activeAgent.system_prompt || "",
+          agentId: activeAgent.id,
+          conversationId,
+          profileId: user?.id,
         }),
         signal: controller.signal,
       });
@@ -289,6 +292,10 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
         supabase.functions.invoke("sage-extract", {
           body: { conversation_id: conversationId, message_content: fullContent, agent_id: activeAgent.id },
         }).catch(() => {});
+
+        // Refresh agent data for updated budget_used
+        queryClient.invalidateQueries({ queryKey: ["agents"] });
+        queryClient.invalidateQueries({ queryKey: ["token-usage"] });
       }
     } catch (e: any) {
       if (e.name === "AbortError") return;
