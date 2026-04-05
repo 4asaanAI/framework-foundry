@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { AppFooter } from "@/components/layout/AppFooter";
@@ -10,10 +10,26 @@ import { TasksView } from "@/components/views/TasksView";
 import { DashboardView } from "@/components/views/DashboardView";
 import { ApprovalsView } from "@/components/views/ApprovalsView";
 import { SettingsView } from "@/components/views/SettingsView";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAgents } from "@/hooks/use-agents";
+import { MOCK_AGENTS } from "@/constants/agents";
 
 export function AppShell() {
   const [activeView, setActiveView] = useState("chat");
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const { profile } = useAuth();
+  const { data: dbAgents } = useAgents();
+  const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
+
+  // Auto-select personal agent on login
+  useEffect(() => {
+    if (profile && agents.length > 0 && !selectedAgentId) {
+      const personalAgent = agents.find((a) => a.name === profile.personalAgentName);
+      if (personalAgent) {
+        setSelectedAgentId(personalAgent.id);
+      }
+    }
+  }, [profile, agents, selectedAgentId]);
 
   const renderView = () => {
     switch (activeView) {
