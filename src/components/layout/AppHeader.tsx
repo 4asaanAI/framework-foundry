@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
-import { Search, Bell, Settings, Sun, Moon, BookOpen } from "lucide-react";
+import { Search, Bell, Settings, Sun, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useNotifications, useUnreadCount, useMarkNotificationRead, useMarkAllRead } from "@/hooks/use-notifications";
 import { useAuth } from "@/contexts/AuthContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { GlobalSearchDialog } from "@/components/dialogs/GlobalSearchDialog";
-import { DirectoryDialog } from "@/components/dialogs/DirectoryDialog";
 
 interface HeaderProps {
   onViewChange: (view: string) => void;
@@ -22,7 +21,6 @@ export function AppHeader({ onViewChange, onAgentClick }: HeaderProps) {
   const { profile } = useAuth();
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [directoryOpen, setDirectoryOpen] = useState(false);
 
   // ⌘K shortcut
   useEffect(() => {
@@ -60,15 +58,6 @@ export function AppHeader({ onViewChange, onAgentClick }: HeaderProps) {
 
         {/* Right icons — right-aligned */}
         <div className="flex items-center gap-1 shrink-0">
-          {/* Directory */}
-          <button
-            onClick={() => setDirectoryOpen(true)}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
-            title="Directory"
-          >
-            <BookOpen className="h-4 w-4" />
-          </button>
-
           {/* Theme toggle */}
           <button
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -144,7 +133,6 @@ export function AppHeader({ onViewChange, onAgentClick }: HeaderProps) {
       </header>
 
       <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} onNavigate={handleSearchNavigate} onAgentClick={onAgentClick} />
-      <DirectoryDialog open={directoryOpen} onOpenChange={setDirectoryOpen} />
     </>
   );
 }
