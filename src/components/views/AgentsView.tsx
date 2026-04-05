@@ -1,19 +1,30 @@
+import { useAgents } from "@/hooks/use-agents";
 import { MOCK_AGENTS, TEAM_LABELS } from "@/constants/agents";
 import { cn } from "@/lib/utils";
-import { Zap, TrendingUp } from "lucide-react";
+import { Zap, TrendingUp, Loader2 } from "lucide-react";
 
 export function AgentsView() {
-  const teams = [...new Set(MOCK_AGENTS.map((a) => a.team))];
+  const { data: dbAgents, isLoading } = useAgents();
+  const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
+  const teams = [...new Set(agents.map((a) => a.team))];
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto">
       <div className="px-6 py-5 border-b border-border">
         <h1 className="text-lg font-semibold text-foreground">Agents</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">22 agents across 7 teams — manage prompts, budgets, and status</p>
+        <p className="text-sm text-muted-foreground mt-0.5">{agents.length} agents across {teams.length} teams — manage prompts, budgets, and status</p>
       </div>
       <div className="px-6 py-4 space-y-6">
         {teams.map((team) => {
-          const teamAgents = MOCK_AGENTS.filter((a) => a.team === team);
+          const teamAgents = agents.filter((a) => a.team === team);
           return (
             <div key={team}>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
@@ -21,7 +32,7 @@ export function AgentsView() {
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {teamAgents.map((agent) => {
-                  const budgetPct = (agent.budget_used / agent.budget_tokens) * 100;
+                  const budgetPct = agent.budget_tokens > 0 ? (agent.budget_used / agent.budget_tokens) * 100 : 0;
                   return (
                     <div
                       key={agent.id}

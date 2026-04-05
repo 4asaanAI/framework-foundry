@@ -1,10 +1,11 @@
-import { Settings as SettingsIcon, Server, Key, Database, Globe, Shield } from "lucide-react";
+import { Settings as SettingsIcon, Server, Key, Database, Globe, Shield, Plug } from "lucide-react";
 
 const SECTIONS = [
-  { icon: Server, label: "LLM Providers", desc: "Configure Anthropic, OpenAI, Google API connections" },
-  { icon: Key, label: "Credential Vault", desc: "Manage API keys (stored encrypted in PocketBase)" },
-  { icon: Database, label: "PocketBase", desc: "Database connection, backups, schema management" },
-  { icon: Globe, label: "n8n Webhooks", desc: "Webhook URLs, API key authentication" },
+  { icon: Server, label: "LLM Providers", desc: "Configure OpenAI, Google, Anthropic API connections" },
+  { icon: Key, label: "Credential Vault", desc: "Manage API keys (stored encrypted)" },
+  { icon: Database, label: "Database", desc: "Connection, backups, schema management" },
+  { icon: Globe, label: "Webhooks", desc: "Webhook URLs, API key authentication" },
+  { icon: Plug, label: "Connectors & MCP", desc: "Manage MCP servers, plugins, and integrations" },
   { icon: Shield, label: "Security", desc: "Rate limiting, CORS, HTTPS, DPDP compliance" },
 ];
 
