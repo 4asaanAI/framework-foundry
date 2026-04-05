@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { Server, Key, Database, Globe, Shield, Plug, Plus, Trash2, Power, ChevronDown, ChevronRight, Loader2, CheckCircle2 } from "lucide-react";
+import { Server, Key, Database, Globe, Shield, Plug, Plus, Trash2, Power, ChevronDown, ChevronRight, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { useConnectors, useDeleteConnector, useToggleConnector } from "@/hooks/use-connectors";
 import { NewConnectorDialog } from "@/components/dialogs/NewConnectorDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { TIMEZONE_OPTIONS, getStoredTimezone } from "@/components/layout/AppFooter";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const SECTIONS = [
+  { icon: Clock, label: "Preferences", type: null, desc: "Timezone, display, and general preferences" },
   { icon: Server, label: "LLM Providers", type: "llm_provider", desc: "Configure OpenAI, Google, Anthropic API connections" },
   { icon: Key, label: "Credential Vault", type: "credential", desc: "Manage API keys (stored encrypted)" },
   { icon: Database, label: "Database", type: null, desc: "Connection status and database info" },
@@ -96,6 +99,37 @@ function SecuritySection() {
   );
 }
 
+function PreferencesSection() {
+  const currentTz = getStoredTimezone();
+
+  const handleTimezoneChange = (value: string) => {
+    localStorage.setItem("layaa_timezone", value);
+    window.dispatchEvent(new Event("layaa_tz_change"));
+    toast.success(`Timezone changed to ${TIMEZONE_OPTIONS.find(t => t.value === value)?.label || value}`);
+  };
+
+  return (
+    <div className="space-y-4 pl-2">
+      <div>
+        <label className="text-xs font-medium text-foreground block mb-1.5">Timezone</label>
+        <Select defaultValue={currentTz} onValueChange={handleTimezoneChange}>
+          <SelectTrigger className="w-64 h-9 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TIMEZONE_OPTIONS.map(tz => (
+              <SelectItem key={tz.value} value={tz.value} className="text-xs">
+                {tz.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-[10px] text-muted-foreground mt-1">Used for the platform clock, notifications, and timestamps</p>
+      </div>
+    </div>
+  );
+}
+
 export function SettingsView() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [dialogType, setDialogType] = useState<string | null>(null);
@@ -134,6 +168,7 @@ export function SettingsView() {
                     </div>
                   )}
                   {s.type && <ConnectorList type={s.type} />}
+                  {s.label === "Preferences" && <PreferencesSection />}
                   {s.label === "Database" && <DatabaseSection />}
                   {s.label === "Security" && <SecuritySection />}
                 </div>
