@@ -160,12 +160,27 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
         const md = msgs.map((m: any) =>
           `**${m.role === "user" ? (profile?.name ?? "You") : activeAgent.name}** (${new Date(m.created_at).toLocaleString()})\n${m.content}`
         ).join("\n\n---\n\n");
-        const blob = new Blob([`# Conversation with ${activeAgent.name}\n\n${md}`], { type: "text/markdown" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url; a.download = `conversation-${activeAgent.name}-${Date.now()}.md`; a.click();
-        URL.revokeObjectURL(url);
-        toast.success("Conversation exported");
+        // Support multiple formats
+        const exportAs = (fmt: string) => {
+          let blob: Blob, ext: string;
+          if (fmt === "json") {
+            blob = new Blob([JSON.stringify(msgs, null, 2)], { type: "application/json" });
+            ext = "json";
+          } else if (fmt === "txt") {
+            const txt = msgs.map((m: any) => `[${m.role}] ${new Date(m.created_at).toLocaleString()}\n${m.content}`).join("\n\n");
+            blob = new Blob([txt], { type: "text/plain" });
+            ext = "txt";
+          } else {
+            blob = new Blob([`# Conversation with ${activeAgent.name}\n\n${md}`], { type: "text/markdown" });
+            ext = "md";
+          }
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url; a.download = `conversation-${activeAgent.name}-${Date.now()}.${ext}`; a.click();
+          URL.revokeObjectURL(url);
+        };
+        exportAs("md");
+        toast.success("Conversation exported as Markdown. Use #export-json or #export-txt for other formats.");
         break;
       }
       case "budget": {
