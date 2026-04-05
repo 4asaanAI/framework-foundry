@@ -79,7 +79,27 @@ serve(async (req) => {
       .select("*", { count: "exact", head: true }).eq("status", "pending");
     results.pending_approvals = pendingApprovals;
 
-    // 6. Log the health check
+    // 6. Auto-compress old memories (>50 per agent → keep newest 40)
+    const compressedAgents: string[] = [];
+    for (const agent of (agents ?? [])) {
+      const { count } = await supabase.from("agent_memories")
+        .select("*", { count: "exact", head: true })
+        .eq("agent_id", agent.id).eq("is_compressed", false);
+
+      if (count && count > 50) {
+        const { data: oldest } = await supabase.from("agent_memories")
+          .select("id").eq("agent_id", agent.id).eq("is_compressed", false)
+          .order("created_at", { ascending: true }).limit(count - 40);
+
+        for (const mem of (oldest ?? [])) {
+          await supabase.from("agent_memories").update({ is_compressed: true }).eq("id", mem.id);
+        }
+        compressedAgents.push(agent.name);
+      }
+    }
+    results.memories_compressed_agents = compressedAgents;
+
+    // 7. Log the health check
     await supabase.from("audit_log").insert({
       actor_id: "kaiser-system", actor_type: "agent",
       action: "health_check", target_table: "system",
