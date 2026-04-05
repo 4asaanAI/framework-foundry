@@ -284,6 +284,11 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
           model: activeAgent.default_model || "google/gemini-3-flash-preview",
         });
         queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+
+        // Trigger Sage memory extraction in background (fire-and-forget)
+        supabase.functions.invoke("sage-extract", {
+          body: { conversation_id: conversationId, message_content: fullContent, agent_id: activeAgent.id },
+        }).catch(() => {});
       }
     } catch (e: any) {
       if (e.name === "AbortError") return;
