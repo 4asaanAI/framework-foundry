@@ -1,8 +1,9 @@
+import { useEffect } from "react";
 import { useAgents } from "@/hooks/use-agents";
 import { MOCK_AGENTS } from "@/constants/agents";
-import { Bot, MessageSquare, Zap, DollarSign, Activity, ShieldCheck, AlertTriangle, Clock } from "lucide-react";
+import { Bot, MessageSquare, Zap, DollarSign, Activity, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
