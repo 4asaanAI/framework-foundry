@@ -41,14 +41,14 @@ export function NewConnectorDialog({ open, onOpenChange, defaultType = "mcp" }: 
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from("connectors").insert({
+      const { error } = await supabase.from("connectors").insert([{
         name: name.trim(),
         type,
         description: description.trim(),
         config,
         is_active: isActive,
         created_by: user?.id,
-      });
+      }]);
       if (error) throw error;
       toast.success(`${type === "llm_provider" ? "LLM Provider" : type === "webhook" ? "Webhook" : "Connector"} "${name}" added`);
       qc.invalidateQueries({ queryKey: ["connectors"] });
