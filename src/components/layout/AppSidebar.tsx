@@ -19,6 +19,7 @@ import {
 interface SidebarProps {
   activeView: string;
   onViewChange: (view: string) => void;
+  onAgentClick?: (agentId: string) => void;
 }
 
 const NAV_ITEMS = [
