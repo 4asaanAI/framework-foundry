@@ -304,6 +304,107 @@ export type Database = {
           },
         ]
       }
+      core_context: {
+        Row: {
+          agent_id: string | null
+          content: string
+          context_key: string
+          created_at: string
+          id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          agent_id?: string | null
+          content?: string
+          context_key: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          agent_id?: string | null
+          content?: string
+          context_key?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "core_context_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credential_vault: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_configured: boolean
+          name: string
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_configured?: boolean
+          name: string
+          provider?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_configured?: boolean
+          name?: string
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      llm_providers: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          models: Json
+          name: string
+          provider_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          models?: Json
+          name: string
+          provider_key?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          models?: Json
+          name?: string
+          provider_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -411,6 +512,42 @@ export type Database = {
           },
         ]
       }
+      plugins: {
+        Row: {
+          context: string
+          created_at: string
+          created_by: string | null
+          display_name: string
+          id: string
+          is_active: boolean
+          name: string
+          skills: Json
+          updated_at: string
+        }
+        Insert: {
+          context?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          skills?: Json
+          updated_at?: string
+        }
+        Update: {
+          context?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          skills?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -477,6 +614,76 @@ export type Database = {
           },
         ]
       }
+      project_kb_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          id: string
+          keywords: Json
+          project_kb_id: string
+        }
+        Insert: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          id?: string
+          keywords?: Json
+          project_kb_id: string
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          id?: string
+          keywords?: Json
+          project_kb_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_kb_chunks_project_kb_id_fkey"
+            columns: ["project_kb_id"]
+            isOneToOne: false
+            referencedRelation: "project_kbs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_kbs: {
+        Row: {
+          content: string
+          created_at: string
+          file_size: number
+          filename: string
+          id: string
+          project_id: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          file_size?: number
+          filename: string
+          id?: string
+          project_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          file_size?: number
+          filename?: string
+          id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_kbs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           created_at: string
@@ -507,6 +714,60 @@ export type Database = {
           is_active?: boolean
           name?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      references: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          updated_at?: string
+          value?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string
         }
         Relationships: []
       }

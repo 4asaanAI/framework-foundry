@@ -2,16 +2,17 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 import { supabase } from "@/integrations/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
-interface Profile {
+export interface Profile {
   name: string;
   initials: string;
   email: string;
   color: string;
+  personalAgentName: string; // name of the personal assistant agent
 }
 
 export const PROFILES: Profile[] = [
-  { name: "Abhimanyu", initials: "A", email: "abhimanyu@layaa.local", color: "#2563EB" },
-  { name: "Shubham", initials: "S", email: "shubham@layaa.local", color: "#10B981" },
+  { name: "Abhimanyu", initials: "A", email: "abhimanyu@layaa.local", color: "#2563EB", personalAgentName: "Arya" },
+  { name: "Shubham", initials: "S", email: "shubham@layaa.local", color: "#10B981", personalAgentName: "Ananya" },
 ];
 
 interface AuthState {
