@@ -53,7 +53,7 @@ export function AppShell() {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      <AppHeader onViewChange={setActiveView} />
+      <AppHeader onViewChange={setActiveView} onAgentClick={handleAgentClick} />
       <div className="flex flex-1 overflow-hidden">
         <AppSidebar activeView={activeView} onViewChange={setActiveView} onAgentClick={handleAgentClick} />
         <main className="flex-1 overflow-hidden">
