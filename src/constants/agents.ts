@@ -55,13 +55,3 @@ export const TEAM_COLORS: Record<string, string> = {
   product: "#06B6D4",
   system: "#78716C",
 };
-
-export const TEAM_COLORS: Record<string, string> = {
-  founders_office: "#2563EB",
-  marketing: "#D97706",
-  revenue: "#059669",
-  delivery: "#14B8A6",
-  support: "#6366F1",
-  product: "#06B6D4",
-  system: "#78716C",
-};
