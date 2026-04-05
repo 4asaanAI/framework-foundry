@@ -32,7 +32,7 @@ const NAV_ITEMS = [
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
-export function AppSidebar({ activeView, onViewChange }: SidebarProps) {
+export function AppSidebar({ activeView, onViewChange, onAgentClick }: SidebarProps) {
   const { data: dbAgents } = useAgents();
   const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
   const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({
@@ -102,7 +102,7 @@ export function AppSidebar({ activeView, onViewChange }: SidebarProps) {
                   {teamAgents.map((agent) => (
                     <button
                       key={agent.id}
-                      onClick={() => onViewChange("chat")}
+                      onClick={() => onAgentClick ? onAgentClick(agent.id) : onViewChange("chat")}
                       className={cn(
                         "flex items-center gap-2 w-full px-3 py-1.5 rounded text-xs transition-colors",
                         agent.is_active
