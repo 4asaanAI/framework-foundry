@@ -38,12 +38,12 @@ export const MOCK_AGENTS: Agent[] = [
 
 export const TEAM_LABELS: Record<string, string> = {
   founders_office: "Founders' Office",
-  marketing: "Marketing & Brand",
-  revenue: "Revenue",
-  delivery: "Delivery & Operations",
-  support: "Support & Knowledge",
-  product: "Customer & Product",
-  system: "Infrastructure & Systems",
+  marketing: "Marketing",
+  revenue: "Finance",
+  delivery: "Tech",
+  support: "Legal",
+  product: "Product Management",
+  system: "System",
 };
 
 export const TEAM_COLORS: Record<string, string> = {
