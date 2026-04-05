@@ -15,7 +15,9 @@ import {
   ChevronRight,
   ChevronDown,
   Plus,
+  LogOut,
 } from "lucide-react";
+import { EditProfileDialog } from "@/components/dialogs/EditProfileDialog";
 
 interface SidebarProps {
   activeView: string;
