@@ -3,102 +3,102 @@
 @tailwind utilities;
 
 @layer base {
-  /* Light theme */
+  /* Light theme — warm, calm, Notion/Linear style */
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
+    --background: 30 14% 95%;
+    --foreground: 20 10% 15%;
 
-    --card: 210 40% 96%;
-    --card-foreground: 222 47% 11%;
+    --card: 30 12% 92%;
+    --card-foreground: 20 10% 15%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover: 30 14% 95%;
+    --popover-foreground: 20 10% 15%;
 
-    --primary: 221 83% 53%;
+    --primary: 22 80% 54%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 30 12% 92%;
+    --secondary-foreground: 20 10% 40%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 30 10% 90%;
+    --muted-foreground: 20 6% 50%;
 
-    --accent: 192 91% 36%;
+    --accent: 216 50% 40%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 221 83% 53%;
+    --border: 30 10% 86%;
+    --input: 30 10% 86%;
+    --ring: 22 80% 54%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 210 40% 98%;
-    --sidebar-foreground: 215 16% 47%;
-    --sidebar-primary: 221 83% 53%;
+    --sidebar-background: 30 14% 97%;
+    --sidebar-foreground: 20 6% 50%;
+    --sidebar-primary: 22 80% 54%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 40% 96%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 214 32% 91%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-accent: 30 12% 92%;
+    --sidebar-accent-foreground: 20 10% 15%;
+    --sidebar-border: 30 10% 86%;
+    --sidebar-ring: 22 80% 54%;
 
     --warning: 48 96% 53%;
-    --warning-foreground: 222 47% 11%;
+    --warning-foreground: 20 10% 15%;
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
-    --info: 192 91% 36%;
+    --info: 216 50% 40%;
     --info-foreground: 0 0% 100%;
   }
 
-  /* Dark theme */
+  /* Dark theme — deep charcoal, Claude-inspired */
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 10%;
+    --foreground: 30 10% 90%;
 
-    --card: 217 33% 17%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 16%;
+    --card-foreground: 30 10% 90%;
 
-    --popover: 217 33% 17%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 16%;
+    --popover-foreground: 30 10% 90%;
 
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 22 80% 54%;
+    --primary-foreground: 30 10% 95%;
 
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 215 20% 65%;
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 30 6% 65%;
 
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 30 4% 55%;
 
-    --accent: 192 91% 36%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 216 50% 40%;
+    --accent-foreground: 30 10% 95%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 30 10% 95%;
 
-    --border: 215 28% 27%;
-    --input: 215 28% 27%;
-    --ring: 221 83% 53%;
+    --border: 0 0% 22%;
+    --input: 0 0% 22%;
+    --ring: 22 80% 54%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 215 20% 65%;
-    --sidebar-primary: 221 83% 53%;
-    --sidebar-primary-foreground: 210 40% 98%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 215 28% 27%;
-    --sidebar-ring: 221 83% 53%;
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 30 4% 55%;
+    --sidebar-primary: 22 80% 54%;
+    --sidebar-primary-foreground: 30 10% 95%;
+    --sidebar-accent: 0 0% 16%;
+    --sidebar-accent-foreground: 30 10% 90%;
+    --sidebar-border: 0 0% 22%;
+    --sidebar-ring: 22 80% 54%;
 
     --warning: 48 96% 53%;
-    --warning-foreground: 222 47% 11%;
+    --warning-foreground: 0 0% 10%;
     --success: 142 71% 45%;
-    --success-foreground: 222 47% 11%;
-    --info: 192 91% 36%;
-    --info-foreground: 222 47% 11%;
+    --success-foreground: 0 0% 10%;
+    --info: 216 50% 40%;
+    --info-foreground: 0 0% 10%;
   }
 }
 

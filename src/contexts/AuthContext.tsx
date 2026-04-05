@@ -11,8 +11,8 @@ export interface Profile {
 }
 
 export const PROFILES: Profile[] = [
-  { name: "Abhimanyu", initials: "A", email: "abhimanyu@layaa.local", color: "#2563EB", personalAgentName: "Arya" },
-  { name: "Shubham", initials: "S", email: "shubham@layaa.local", color: "#10B981", personalAgentName: "Ananya" },
+  { name: "Abhimanyu", initials: "A", email: "abhimanyu@layaa.local", color: "#E87A2E", personalAgentName: "Arya" },
+  { name: "Shubham", initials: "S", email: "shubham@layaa.local", color: "#2B5797", personalAgentName: "Ananya" },
 ];
 
 interface AuthState {
