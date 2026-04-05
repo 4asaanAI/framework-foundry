@@ -96,11 +96,14 @@ export type Database = {
           avatar_color: string
           avatar_initials: string
           budget_loaned: number
+          budget_period_start: string | null
           budget_tokens: number
           budget_used: number
           canonical_role: string
           created_at: string
           created_by: string | null
+          custom_api_base_url: string | null
+          custom_api_key: string | null
           default_model: string
           description: string
           id: string
@@ -118,11 +121,14 @@ export type Database = {
           avatar_color?: string
           avatar_initials?: string
           budget_loaned?: number
+          budget_period_start?: string | null
           budget_tokens?: number
           budget_used?: number
           canonical_role: string
           created_at?: string
           created_by?: string | null
+          custom_api_base_url?: string | null
+          custom_api_key?: string | null
           default_model?: string
           description?: string
           id?: string
@@ -140,11 +146,14 @@ export type Database = {
           avatar_color?: string
           avatar_initials?: string
           budget_loaned?: number
+          budget_period_start?: string | null
           budget_tokens?: number
           budget_used?: number
           canonical_role?: string
           created_at?: string
           created_by?: string | null
+          custom_api_base_url?: string | null
+          custom_api_key?: string | null
           default_model?: string
           description?: string
           id?: string
@@ -950,6 +959,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      token_usage_log: {
+        Row: {
+          agent_id: string
+          conversation_id: string | null
+          cost_usd: number
+          created_at: string
+          id: string
+          message_id: string | null
+          model: string
+          profile_id: string
+          tokens_in: number
+          tokens_out: number
+        }
+        Insert: {
+          agent_id: string
+          conversation_id?: string | null
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          model?: string
+          profile_id: string
+          tokens_in?: number
+          tokens_out?: number
+        }
+        Update: {
+          agent_id?: string
+          conversation_id?: string | null
+          cost_usd?: number
+          created_at?: string
+          id?: string
+          message_id?: string | null
+          model?: string
+          profile_id?: string
+          tokens_in?: number
+          tokens_out?: number
+        }
+        Relationships: []
       }
     }
     Views: {
