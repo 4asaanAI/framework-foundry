@@ -101,7 +101,6 @@ function getFaviconUrl(appName: string): string {
     "Aiwyn Tax": "aiwyn.ai", "Clarity AI": "clarity.ai",
     "Bigdata.com": "bigdata.com",
     "Sprouts Data Intelligence": "sprouts.ai", "Vibe Prospecting": "vibe.co",
-    "Chronograph": "chronograph.pe",
     "LSEG": "lseg.com", "MSCI": "msci.com", "S&P Global": "spglobal.com",
     "Moody's Analytics": "moodys.com", "MT Newswires": "mtnewswires.com",
     "Quartr": "quartr.com",
