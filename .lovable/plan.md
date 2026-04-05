@@ -1,24 +1,22 @@
 
-## Phase 1: Theme & Layout (do first — affects everything)
-1. **New color system** — Light (#F5F3F0 base, #EEEBE7 surfaces, #E87A2E accent, #2B5797 nav) and Dark (#1A1A1A base, #2A2A2A cards, orange glow accents, blue nav)
-2. **Header layout** — Search bar centered, icons right-aligned
+## Phase 1: Edit Dialogs (Projects & Tasks)
+1. **EditProjectDialog** — Edit name, description, instructions, KB file upload, manage assigned agents
+2. **EditTaskDialog** — Edit title, description, status, due date, assigned agent
 
-## Phase 2: Global Search
-3. **Command palette search** — Search across agents, chats, projects, skills, connectors, plugins, settings using cmdk
+## Phase 2: Key Platform Capabilities (from spec)
+3. **Built-in /commands** — `/clear`, `/new`, `/export`, `/budget`, `/status`, `/help` as hard-coded commands in chat
+4. **Approval gate improvements** — Add approval insert policy, wire approval flow for tier-2 actions
+5. **Budget enforcement** — Check budget before sending, show exhaustion banner, system budget pool in settings
+6. **Message features** — Rating (thumbs up/down), pinning, starring conversations
+7. **Context window indicator** — Progress bar showing context usage in chat header
+8. **Draft auto-save** — Save input to localStorage, restore on reload
+9. **Input history** — Up/down arrow to cycle previous messages
+10. **Conversation export** — Export as markdown/HTML download
 
-## Phase 3: Profile & Tokens
-4. **Profile picture upload** — File upload to storage bucket, update avatar_url
-5. **Dynamic token meter** — Real-time budget_used/budget_tokens display with live updates
-
-## Phase 4: Directory / Library
-6. **Directory dialog** — Tabbed modal (Skills, Connectors, Plugins) with search, filter, sort — like the Claude screenshot
-7. **Add custom connector** — Manual add form (name, URL, OAuth fields) like second screenshot
-8. **Skill upload** — Upload .json/.md skill files from local or create manually
-
-## Phase 5: Chat Enhancements
-9. **Projects ↔ Chat linking** — "Work in a project" dropdown pulls from projects table, can create new project inline
-10. **@ agent split-screen** — When @agent is used, split chat view showing both agents side-by-side; secondary agent leaves when done
-
-## Phase 6: Data Interlinking
-11. **Real-time subscriptions** — Supabase realtime on agents, projects, tasks, connectors so changes propagate everywhere
-12. **Cross-reference updates** — Editing agent name/prompt in one place updates all linked views
+## Phase 3: Database additions needed
+- `message_archives` table for conversation truncation
+- `message_annotations` table for comments
+- `drafts` table for draft persistence
+- Add `is_trusted_recurring` to tasks
+- Add `budget_period_start` to agents
+- System budget settings seeding

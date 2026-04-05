@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useAgents } from "@/hooks/use-agents";
 import { useConversations, useMessages } from "@/hooks/use-conversations";
 import { useSkills } from "@/hooks/use-skills";
@@ -6,7 +6,7 @@ import { usePlugins } from "@/hooks/use-plugins";
 import { useConnectors } from "@/hooks/use-connectors";
 import { useProjects } from "@/hooks/use-projects";
 import { MOCK_AGENTS } from "@/constants/agents";
-import { Send, Plus, FolderKanban, ChevronDown, X, FileText, Image, File, PanelRightClose } from "lucide-react";
+import { Send, Plus, FolderKanban, ChevronDown, X, FileText, Image, File, PanelRightClose, ThumbsUp, ThumbsDown, Pin, Download, Star, StarOff, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,10 +14,24 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { NewProjectDialog } from "@/components/dialogs/NewProjectDialog";
+import { Progress } from "@/components/ui/progress";
 
 interface ChatViewProps {
   selectedAgentId?: string | null;
 }
+
+// Built-in commands
+const BUILT_IN_COMMANDS = [
+  { name: "clear", description: "Archive current conversation history" },
+  { name: "new", description: "Start a new conversation with this agent" },
+  { name: "export", description: "Export conversation as markdown" },
+  { name: "budget", description: "Show current agent's budget status" },
+  { name: "status", description: "Show all agents' status" },
+  { name: "help", description: "Show available commands" },
+];
+
+const MAX_INPUT_HISTORY = 50;
+const DRAFT_SAVE_INTERVAL = 2000;
 
 export function ChatView({ selectedAgentId }: ChatViewProps) {
   const [message, setMessage] = useState("");
@@ -31,9 +45,11 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
   const [uploading, setUploading] = useState(false);
   const [mentionedAgent, setMentionedAgent] = useState<typeof agents[0] | null>(null);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [inputHistoryIndex, setInputHistoryIndex] = useState(-1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const { data: dbAgents } = useAgents();
   const { user, profile } = useAuth();
@@ -52,13 +68,118 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
   const activeConversation = conversations?.find((c: any) => c.agent_id === activeAgent.id);
   const { data: messages } = useMessages(activeConversation?.id);
 
+  // Restore draft from localStorage on conversation change
+  useEffect(() => {
+    const key = `draft_${activeAgent.id}`;
+    const saved = localStorage.getItem(key);
+    if (saved) setMessage(saved);
+    else setMessage("");
+    return () => { if (draftTimerRef.current) clearTimeout(draftTimerRef.current); };
+  }, [activeAgent.id]);
+
+  // Auto-save draft
+  useEffect(() => {
+    if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
+    draftTimerRef.current = setTimeout(() => {
+      const key = `draft_${activeAgent.id}`;
+      if (message.trim()) localStorage.setItem(key, message);
+      else localStorage.removeItem(key);
+    }, DRAFT_SAVE_INTERVAL);
+  }, [message, activeAgent.id]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Input history
+  const getInputHistory = (): string[] => {
+    try { return JSON.parse(localStorage.getItem("input_history") || "[]"); } catch { return []; }
+  };
+  const addToHistory = (text: string) => {
+    const history = getInputHistory();
+    const filtered = history.filter(h => h !== text);
+    filtered.unshift(text);
+    localStorage.setItem("input_history", JSON.stringify(filtered.slice(0, MAX_INPUT_HISTORY)));
+  };
+
+  // Context window usage estimate
+  const estimateContextUsage = () => {
+    const msgs = messages ?? [];
+    const totalChars = msgs.reduce((sum: number, m: any) => sum + (m.content?.length ?? 0), 0);
+    const estimatedTokens = Math.ceil(totalChars / 4);
+    const contextLimit = 128000; // default for modern models
+    return Math.min((estimatedTokens / contextLimit) * 100, 100);
+  };
+
+  const contextUsage = estimateContextUsage();
+
+  // Built-in command execution
+  const executeBuiltInCommand = async (cmd: string) => {
+    switch (cmd) {
+      case "clear":
+        if (activeConversation) {
+          // Archive messages, don't delete
+          const { data: msgs } = await supabase.from("messages").select("*").eq("conversation_id", activeConversation.id);
+          if (msgs && msgs.length > 0) {
+            for (const m of msgs) {
+              await (supabase as any).from("message_archives").insert({
+                conversation_id: m.conversation_id, original_message_id: m.id,
+                content: m.content, role: m.role,
+              });
+            }
+            await supabase.from("messages").delete().eq("conversation_id", activeConversation.id);
+            queryClient.invalidateQueries({ queryKey: ["messages", activeConversation.id] });
+            toast.success("Conversation archived and cleared");
+          }
+        }
+        break;
+      case "new":
+        if (user) {
+          const { error } = await supabase.from("conversations").insert({
+            agent_id: activeAgent.id, profile_id: user.id, title: `New chat with ${activeAgent.name}`,
+            project_id: selectedProject?.id ?? null,
+          });
+          if (!error) {
+            queryClient.invalidateQueries({ queryKey: ["conversations"] });
+            toast.success("New conversation started");
+          }
+        }
+        break;
+      case "export": {
+        const msgs = messages ?? [];
+        const md = msgs.map((m: any) =>
+          `**${m.role === "user" ? (profile?.name ?? "You") : activeAgent.name}** (${new Date(m.created_at).toLocaleString()})\n${m.content}`
+        ).join("\n\n---\n\n");
+        const blob = new Blob([`# Conversation with ${activeAgent.name}\n\n${md}`], { type: "text/markdown" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `conversation-${activeAgent.name}-${Date.now()}.md`; a.click();
+        URL.revokeObjectURL(url);
+        toast.success("Conversation exported");
+        break;
+      }
+      case "budget": {
+        const effective = activeAgent.budget_tokens + (activeAgent.budget_loaned ?? 0);
+        const used = activeAgent.budget_used ?? 0;
+        const pct = effective > 0 ? Math.round((used / effective) * 100) : 0;
+        toast.info(`${activeAgent.name}: ${used.toLocaleString()} / ${effective.toLocaleString()} tokens used (${pct}%)`);
+        break;
+      }
+      case "status":
+        agents.forEach(a => {
+          toast.info(`${a.name}: ${a.status ?? "idle"}`, { duration: 3000 });
+        });
+        break;
+      case "help":
+        toast.info("Commands: /clear, /new, /export, /budget, /status, /help. Use @ to mention agents.", { duration: 5000 });
+        break;
+    }
+  };
+
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setMessage(val);
+    setInputHistoryIndex(-1);
     const cursorPos = e.target.selectionStart;
     const textBeforeCursor = val.slice(0, cursorPos);
     const lastSlash = textBeforeCursor.lastIndexOf("/");
@@ -71,6 +192,27 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
     if (lastAt >= 0 && (lastAt === 0 || textBeforeCursor[lastAt - 1] === " ")) {
       setMentionPickerOpen(true); setSkillPickerOpen(false);
     } else { setMentionPickerOpen(false); }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); return; }
+    // Input history navigation
+    if (e.key === "ArrowUp" && message === "") {
+      e.preventDefault();
+      const history = getInputHistory();
+      if (history.length > 0) {
+        const newIdx = Math.min(inputHistoryIndex + 1, history.length - 1);
+        setInputHistoryIndex(newIdx);
+        setMessage(history[newIdx]);
+      }
+    }
+    if (e.key === "ArrowDown" && inputHistoryIndex >= 0) {
+      e.preventDefault();
+      const history = getInputHistory();
+      const newIdx = inputHistoryIndex - 1;
+      if (newIdx < 0) { setInputHistoryIndex(-1); setMessage(""); }
+      else { setInputHistoryIndex(newIdx); setMessage(history[newIdx]); }
+    }
   };
 
   const insertSkill = (skillName: string) => {
@@ -112,7 +254,29 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
 
   const handleSend = async () => {
     if ((!message.trim() && attachedFiles.length === 0) || !user || sending) return;
+
+    // Check for built-in commands
+    const trimmed = message.trim();
+    if (trimmed.startsWith("/")) {
+      const cmd = trimmed.slice(1).split(" ")[0].toLowerCase();
+      const builtIn = BUILT_IN_COMMANDS.find(c => c.name === cmd);
+      if (builtIn) {
+        await executeBuiltInCommand(cmd);
+        setMessage("");
+        localStorage.removeItem(`draft_${activeAgent.id}`);
+        return;
+      }
+    }
+
+    // Check budget before sending
+    const effective = activeAgent.budget_tokens + (activeAgent.budget_loaned ?? 0);
+    if (activeAgent.budget_used >= effective) {
+      toast.error(`${activeAgent.name}'s budget is exhausted. Transfer tokens or increase budget.`);
+      return;
+    }
+
     setSending(true);
+    addToHistory(trimmed);
     try {
       let conversationId = activeConversation?.id;
       if (!conversationId) {
@@ -129,12 +293,33 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
         mention_agent_id: mentionedAgent?.id ?? null,
       });
       setMessage(""); setAttachedFiles([]); setMentionedAgent(null);
+      localStorage.removeItem(`draft_${activeAgent.id}`);
       queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
     } catch (err) {
       console.error("Send error:", err);
       toast.error("Failed to send message");
     } finally { setSending(false); }
+  };
+
+  // Message actions
+  const handleRate = async (msgId: string, rating: number) => {
+    await supabase.from("messages").update({ rating }).eq("id", msgId);
+    queryClient.invalidateQueries({ queryKey: ["messages", activeConversation?.id] });
+    toast.success(rating === 1 ? "👍 Rated positive" : "👎 Rated negative");
+  };
+
+  const handlePin = async (msgId: string, isPinned: boolean) => {
+    await supabase.from("messages").update({ is_pinned: !isPinned }).eq("id", msgId);
+    queryClient.invalidateQueries({ queryKey: ["messages", activeConversation?.id] });
+    toast.success(isPinned ? "Unpinned" : "Pinned");
+  };
+
+  const handleStarConversation = async () => {
+    if (!activeConversation) return;
+    await supabase.from("conversations").update({ is_starred: !activeConversation.is_starred }).eq("id", activeConversation.id);
+    queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    toast.success(activeConversation.is_starred ? "Unstarred" : "Starred");
   };
 
   const displayMessages = messages && messages.length > 0 ? messages : [];
@@ -148,19 +333,16 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
     ? message.slice(message.lastIndexOf("/") + 1).toLowerCase()
     : mentionPickerOpen ? message.slice(message.lastIndexOf("@") + 1).toLowerCase() : "";
 
+  // Merge built-in commands with skills for slash picker
+  const builtInMatches = BUILT_IN_COMMANDS.filter(c => c.name.includes(searchTerm));
   const filteredSkills = skills?.filter((s) => s.name.toLowerCase().includes(searchTerm)) ?? [];
   const filteredAgents = agents.filter((a) => a.name.toLowerCase().includes(searchTerm) && a.is_active);
 
-  // Split-screen: check if there's a mentioned agent in the conversation
   const hasSplitScreen = !!mentionedAgent && mentionedAgent.id !== activeAgent.id;
 
-  const renderMessages = (agentFilter?: string) => {
-    const msgs = agentFilter
-      ? displayMessages.filter(m => m.role === "user" || m.mention_agent_id === agentFilter || (!m.mention_agent_id && !agentFilter))
-      : displayMessages;
-
-    return msgs.map((msg) => (
-      <div key={msg.id} className={cn("flex gap-3 animate-fade-in", msg.role === "user" && "flex-row-reverse")}>
+  const renderMessages = () => {
+    return displayMessages.map((msg: any) => (
+      <div key={msg.id} className={cn("flex gap-3 animate-fade-in group", msg.role === "user" && "flex-row-reverse")}>
         {msg.role !== "user" && (
           <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 mt-1 border-2 border-border"
             style={{ backgroundColor: activeAgent.avatar_color + "20", color: activeAgent.avatar_color }}>
@@ -172,7 +354,8 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
             {profile?.initials ?? "U"}
           </div>
         )}
-        <div className={cn("max-w-[70%] rounded-lg px-4 py-2", msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-card text-foreground")}>
+        <div className={cn("max-w-[70%] rounded-lg px-4 py-2 relative", msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-card text-foreground")}>
+          {msg.is_pinned && <Pin className="h-3 w-3 text-warning absolute -top-1 -right-1" />}
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-semibold">{msg.role === "user" ? (profile?.name ?? "You") : activeAgent.name}</span>
             <span className="text-[10px] opacity-60">{new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
@@ -194,6 +377,25 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
               <span>💰 {msg.tokens_in + msg.tokens_out} tokens</span>
             </div>
           )}
+          {/* Message action buttons */}
+          <div className="flex items-center gap-1 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            {msg.role !== "user" && (
+              <>
+                <button onClick={() => handleRate(msg.id, 1)}
+                  className={cn("p-0.5 rounded hover:bg-success/10 transition-colors", msg.rating === 1 ? "text-success" : "text-muted-foreground")}>
+                  <ThumbsUp className="h-3 w-3" />
+                </button>
+                <button onClick={() => handleRate(msg.id, -1)}
+                  className={cn("p-0.5 rounded hover:bg-destructive/10 transition-colors", msg.rating === -1 ? "text-destructive" : "text-muted-foreground")}>
+                  <ThumbsDown className="h-3 w-3" />
+                </button>
+              </>
+            )}
+            <button onClick={() => handlePin(msg.id, msg.is_pinned)}
+              className={cn("p-0.5 rounded hover:bg-warning/10 transition-colors", msg.is_pinned ? "text-warning" : "text-muted-foreground")}>
+              <Pin className="h-3 w-3" />
+            </button>
+          </div>
         </div>
       </div>
     ));
@@ -223,16 +425,48 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
             </button>
           </div>
         )}
-        <span className={cn("ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium",
-          activeAgent.status === "thinking" ? "bg-primary/20 text-primary" :
-          activeAgent.status === "error" ? "bg-destructive/20 text-destructive" :
-          "bg-success/20 text-success"
-        )}>
-          {activeAgent.status ?? "idle"}
-        </span>
+
+        <div className="ml-auto flex items-center gap-3">
+          {/* Context window indicator */}
+          <div className="flex items-center gap-2" title={`~${Math.round(contextUsage)}% context used`}>
+            <span className="text-[10px] text-muted-foreground">Context</span>
+            <Progress value={contextUsage} className={cn("w-16 h-1.5", contextUsage > 80 && "[&>div]:bg-warning")} />
+            <span className="text-[10px] text-muted-foreground">{Math.round(contextUsage)}%</span>
+          </div>
+
+          {/* Star conversation */}
+          {activeConversation && (
+            <button onClick={handleStarConversation}
+              className="p-1 rounded hover:bg-card transition-colors" title={activeConversation.is_starred ? "Unstar" : "Star"}>
+              {activeConversation.is_starred ? <Star className="h-4 w-4 text-warning fill-warning" /> : <StarOff className="h-4 w-4 text-muted-foreground" />}
+            </button>
+          )}
+
+          {/* Export */}
+          <button onClick={() => executeBuiltInCommand("export")} className="p-1 rounded hover:bg-card transition-colors" title="Export conversation">
+            <Download className="h-4 w-4 text-muted-foreground" />
+          </button>
+
+          <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium",
+            activeAgent.status === "thinking" ? "bg-primary/20 text-primary" :
+            activeAgent.status === "error" ? "bg-destructive/20 text-destructive" :
+            activeAgent.status === "budget_exhausted" ? "bg-warning/20 text-warning" :
+            "bg-success/20 text-success"
+          )}>
+            {activeAgent.status ?? "idle"}
+          </span>
+        </div>
       </div>
 
-      {/* Messages area — with optional split screen */}
+      {/* Budget exhaustion banner */}
+      {activeAgent.budget_used >= (activeAgent.budget_tokens + (activeAgent.budget_loaned ?? 0)) && (
+        <div className="px-6 py-2 bg-warning/10 border-b border-warning/30 flex items-center gap-3">
+          <span className="text-xs text-warning font-medium">⚠️ {activeAgent.name}'s token budget is exhausted.</span>
+          <span className="text-[10px] text-muted-foreground">Transfer tokens from another agent or increase this agent's allocation.</span>
+        </div>
+      )}
+
+      {/* Messages area */}
       <div className="flex-1 overflow-hidden flex">
         <div className={cn("flex-1 overflow-y-auto", hasSplitScreen && "border-r border-border")}>
           <div className="max-w-[900px] mx-auto px-6 py-4 space-y-4">
@@ -244,6 +478,7 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
                 </div>
                 <h3 className="text-lg font-semibold text-foreground mb-1">Chat with {activeAgent.name}</h3>
                 <p className="text-sm text-muted-foreground max-w-md">{activeAgent.description}</p>
+                <p className="text-xs text-muted-foreground mt-3">Type <code className="px-1.5 py-0.5 rounded bg-card border border-border">/help</code> for available commands</p>
               </div>
             )}
             {renderMessages()}
@@ -251,7 +486,6 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
           </div>
         </div>
 
-        {/* Split screen for mentioned agent */}
         {hasSplitScreen && (
           <div className="flex-1 overflow-y-auto bg-card/30">
             <div className="px-4 py-3 border-b border-border flex items-center gap-2">
@@ -275,9 +509,18 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
 
       {/* Chat Input */}
       <div className="border-t border-border shrink-0">
-        {skillPickerOpen && filteredSkills.length > 0 && (
+        {/* Slash command picker — built-in + skills */}
+        {skillPickerOpen && (builtInMatches.length > 0 || filteredSkills.length > 0) && (
           <div className="max-w-[900px] mx-auto px-6">
             <div className="bg-popover border border-border rounded-lg shadow-lg max-h-[200px] overflow-y-auto mb-1">
+              {builtInMatches.map((cmd) => (
+                <button key={cmd.name} onClick={() => { setMessage("/" + cmd.name); setSkillPickerOpen(false); }}
+                  className="flex items-center gap-3 w-full px-3 py-2 hover:bg-card text-left transition-colors">
+                  <span className="text-xs font-medium text-primary">/{cmd.name}</span>
+                  <span className="text-[10px] text-muted-foreground">{cmd.description}</span>
+                  <span className="ml-auto text-[9px] text-muted-foreground px-1.5 py-0.5 rounded bg-card border border-border">built-in</span>
+                </button>
+              ))}
               {filteredSkills.slice(0, 10).map((skill) => (
                 <button key={skill.id} onClick={() => insertSkill(skill.name)}
                   className="flex items-center gap-3 w-full px-3 py-2 hover:bg-card text-left transition-colors">
@@ -301,6 +544,7 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
                   </div>
                   <span className="text-xs font-medium text-foreground">@{agent.name}</span>
                   <span className="text-[10px] text-muted-foreground truncate">{agent.canonical_role}</span>
+                  <span className="ml-auto text-[9px] text-muted-foreground">{agent.team}</span>
                 </button>
               ))}
             </div>
@@ -322,8 +566,8 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
 
           <div className="flex flex-col rounded-lg bg-card border border-border overflow-hidden">
             <textarea ref={textareaRef} value={message} onChange={handleInputChange}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-              placeholder="Type / for skills, @ to mention an agent..."
+              onKeyDown={handleKeyDown}
+              placeholder="Type / for commands, @ to mention an agent..."
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground resize-none outline-none min-h-[44px] max-h-[120px] px-4 py-3"
               rows={1}
             />

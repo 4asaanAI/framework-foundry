@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useProjects } from "@/hooks/use-projects";
-import { FolderKanban, Plus, Users, Loader2 } from "lucide-react";
+import { FolderKanban, Plus, Users, Loader2, Pencil } from "lucide-react";
 import { NewProjectDialog } from "@/components/dialogs/NewProjectDialog";
+import { EditProjectDialog } from "@/components/dialogs/EditProjectDialog";
 
 const MOCK_PROJECTS = [
   { id: "1", name: "EduFlow", description: "AI-powered education platform for client delivery", agent_count: 3, is_active: true },
@@ -13,6 +14,7 @@ export function ProjectsView() {
   const { data: dbProjects, isLoading } = useProjects();
   const projects = dbProjects && dbProjects.length > 0 ? dbProjects : MOCK_PROJECTS;
   const [showNew, setShowNew] = useState(false);
+  const [editProject, setEditProject] = useState<any>(null);
 
   if (isLoading) {
     return (
@@ -37,32 +39,44 @@ export function ProjectsView() {
         </button>
       </div>
       <div className="px-6 py-4 space-y-3">
-        {projects.map((project: any) => (
-          <div key={project.id} className="rounded-xl border border-border bg-card p-5 hover:glow-border transition-all cursor-pointer">
-            <div className="flex items-start justify-between">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <FolderKanban className="h-5 w-5 text-primary" />
+        {projects.map((project: any) => {
+          const isMock = typeof project.id === "string" && project.id.length === 1;
+          return (
+            <div key={project.id} className="rounded-xl border border-border bg-card p-5 hover:glow-border transition-all cursor-pointer group">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <FolderKanban className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">{project.name}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">{project.description}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">{project.name}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">{project.description}</p>
+                <div className="flex items-center gap-2">
+                  {!isMock && (
+                    <button onClick={() => setEditProject(project)}
+                      className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-muted transition-all" title="Edit">
+                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                  )}
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${project.is_active ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
+                    {project.is_active ? "Active" : "Inactive"}
+                  </span>
                 </div>
               </div>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full ${project.is_active ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
-                {project.is_active ? "Active" : "Inactive"}
-              </span>
-            </div>
-            <div className="mt-4 flex items-center gap-4">
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <Users className="h-3.5 w-3.5" />
-                <span className="text-[11px]">{project.agent_count ?? 0} agents</span>
+              <div className="mt-4 flex items-center gap-4">
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Users className="h-3.5 w-3.5" />
+                  <span className="text-[11px]">{project.agent_count ?? 0} agents</span>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <NewProjectDialog open={showNew} onOpenChange={setShowNew} />
+      {editProject && <EditProjectDialog open={!!editProject} onOpenChange={(o) => !o && setEditProject(null)} project={editProject} />}
     </div>
   );
 }
