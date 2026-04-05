@@ -35,20 +35,31 @@ const NAV_ITEMS = [
 
 function ProfileFooter() {
   const { profile, signOut } = useAuth();
+  const [showEdit, setShowEdit] = useState(false);
   return (
     <div className="px-3 py-3 border-t border-border">
-      <button onClick={signOut} className="flex items-center gap-2 w-full hover:bg-card rounded-lg p-1 transition-colors">
-        <div
-          className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold"
-          style={{ backgroundColor: (profile?.color ?? "#2563EB") + "20", color: profile?.color ?? "#2563EB" }}
+      <div className="flex items-center gap-2">
+        <button onClick={() => setShowEdit(true)} className="flex items-center gap-2 flex-1 hover:bg-card rounded-lg p-1 transition-colors">
+          <div
+            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold"
+            style={{ backgroundColor: (profile?.color ?? "#2563EB") + "20", color: profile?.color ?? "#2563EB" }}
+          >
+            {profile?.initials ?? "U"}
+          </div>
+          <div className="flex flex-col text-left">
+            <span className="text-xs font-medium text-foreground">{profile?.name ?? "User"}</span>
+            <span className="text-[10px] text-muted-foreground">Edit profile</span>
+          </div>
+        </button>
+        <button
+          onClick={signOut}
+          className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-card transition-colors text-[10px]"
+          title="Switch profile"
         >
-          {profile?.initials ?? "U"}
-        </div>
-        <div className="flex flex-col text-left">
-          <span className="text-xs font-medium text-foreground">{profile?.name ?? "User"}</span>
-          <span className="text-[10px] text-muted-foreground">Switch profile</span>
-        </div>
-      </button>
+          <LogOut className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <EditProfileDialog open={showEdit} onOpenChange={setShowEdit} />
     </div>
   );
 }
