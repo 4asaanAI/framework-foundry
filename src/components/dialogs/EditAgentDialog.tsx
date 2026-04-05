@@ -8,7 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Trash2, Plus, Brain, FileText, History } from "lucide-react";
+import { Trash2, Plus, Brain, FileText, History, Database } from "lucide-react";
+import { AgentKBTab } from "@/components/dialogs/AgentKBTab";
 import type { AgentRow } from "@/hooks/use-agents";
 
 interface EditAgentDialogProps {
@@ -141,10 +142,11 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
         </DialogHeader>
 
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="kb" className="flex items-center gap-1"><Database className="h-3 w-3" /> KB</TabsTrigger>
             <TabsTrigger value="memory" className="flex items-center gap-1"><Brain className="h-3 w-3" /> Memory</TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-1"><History className="h-3 w-3" /> Prompt History</TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-1"><History className="h-3 w-3" /> History</TabsTrigger>
           </TabsList>
 
           <TabsContent value="general" className="space-y-4 pt-2">
@@ -193,6 +195,10 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
               <Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save Changes"}</Button>
             </div>
+          </TabsContent>
+
+          <TabsContent value="kb">
+            {agent && <AgentKBTab agentId={agent.id} />}
           </TabsContent>
 
           <TabsContent value="memory" className="space-y-4 pt-2">

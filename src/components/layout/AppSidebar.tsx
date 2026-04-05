@@ -30,6 +30,8 @@ import {
   MoreHorizontal,
   BarChart3,
   Blocks,
+  Kanban,
+  Mail,
 } from "lucide-react";
 import { EditProfileDialog } from "@/components/dialogs/EditProfileDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -45,9 +47,11 @@ const NAV_ITEMS = [
   { id: "agents", label: "Agents", icon: Bot },
   { id: "projects", label: "Projects", icon: FolderKanban },
   { id: "tasks", label: "Tasks", icon: CheckSquare },
+  { id: "crm", label: "CRM Board", icon: Kanban },
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "approvals", label: "Approvals", icon: Shield },
+  { id: "messages", label: "Messages", icon: Mail },
   { id: "customize", label: "Customize", icon: Blocks },
   { id: "settings", label: "Settings", icon: Settings },
 ];
