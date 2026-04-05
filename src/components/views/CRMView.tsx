@@ -59,10 +59,17 @@ export function CRMView() {
           <h1 className="text-lg font-semibold text-foreground">CRM Board</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Kanban view of all tasks across agents</p>
         </div>
-        <button onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
-          <Plus className="h-4 w-4" /> New Task
-        </button>
+        <div className="flex items-center gap-2">
+          <select value={filter} onChange={e => setFilter(e.target.value)}
+            className="px-2 py-1.5 rounded-lg bg-card border border-border text-xs text-foreground">
+            <option value="all">All Agents</option>
+            {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+          <button onClick={() => setShowNew(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+            <Plus className="h-4 w-4" /> New Task
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-x-auto">
