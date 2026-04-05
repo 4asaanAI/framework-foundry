@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useTasks } from "@/hooks/use-tasks";
 import { useUpdateTaskStatus } from "@/hooks/use-update-task";
-import { CheckSquare, Circle, Clock, AlertCircle, CheckCircle2, Loader2, Plus, Play, XCircle } from "lucide-react";
+import { Circle, Clock, AlertCircle, CheckCircle2, Loader2, Plus, Play, XCircle, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { NewTaskDialog } from "@/components/dialogs/NewTaskDialog";
+import { EditTaskDialog } from "@/components/dialogs/EditTaskDialog";
 import { toast } from "sonner";
 
 const MOCK_TASKS = [
@@ -28,6 +29,7 @@ export function TasksView() {
   const updateStatus = useUpdateTaskStatus();
   const tasks = dbTasks && dbTasks.length > 0 ? dbTasks : MOCK_TASKS;
   const [showNew, setShowNew] = useState(false);
+  const [editTask, setEditTask] = useState<any>(null);
 
   if (isLoading) {
     return (
@@ -66,7 +68,7 @@ export function TasksView() {
             : "No date";
           const isMock = typeof task.id === "string" && task.id.length === 1;
           return (
-            <div key={task.id} className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 hover:glow-border transition-all">
+            <div key={task.id} className="flex items-center gap-4 rounded-xl border border-border bg-card px-4 py-3 hover:glow-border transition-all group">
               <cfg.icon className={cn("h-4 w-4 shrink-0", cfg.color)} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-foreground truncate">{task.title}</p>
@@ -74,6 +76,12 @@ export function TasksView() {
               </div>
               <span className={cn("text-[10px] px-2 py-0.5 rounded-full border", cfg.color, "border-current/20")}>{cfg.label}</span>
               <span className="text-[11px] text-muted-foreground">{dueLabel}</span>
+              {!isMock && (
+                <button onClick={() => setEditTask(task)}
+                  className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-muted transition-all" title="Edit">
+                  <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              )}
               {!isMock && task.status !== "completed" && task.status !== "failed" && (
                 <div className="flex items-center gap-1 shrink-0">
                   {task.status === "pending" && (
@@ -96,6 +104,7 @@ export function TasksView() {
         })}
       </div>
       <NewTaskDialog open={showNew} onOpenChange={setShowNew} />
+      {editTask && <EditTaskDialog open={!!editTask} onOpenChange={(o) => !o && setEditTask(null)} task={editTask} />}
     </div>
   );
 }
