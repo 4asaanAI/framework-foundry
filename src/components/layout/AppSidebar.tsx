@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAgents } from "@/hooks/use-agents";
+import { useAuth } from "@/contexts/AuthContext";
 import { MOCK_AGENTS, TEAM_LABELS } from "@/constants/agents";
 import type { Team } from "@/types/layaa";
 import {
@@ -19,6 +20,7 @@ import {
 interface SidebarProps {
   activeView: string;
   onViewChange: (view: string) => void;
+  onAgentClick?: (agentId: string) => void;
 }
 
 const NAV_ITEMS = [
@@ -31,7 +33,27 @@ const NAV_ITEMS = [
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
-export function AppSidebar({ activeView, onViewChange }: SidebarProps) {
+function ProfileFooter() {
+  const { profile, signOut } = useAuth();
+  return (
+    <div className="px-3 py-3 border-t border-border">
+      <button onClick={signOut} className="flex items-center gap-2 w-full hover:bg-card rounded-lg p-1 transition-colors">
+        <div
+          className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold"
+          style={{ backgroundColor: (profile?.color ?? "#2563EB") + "20", color: profile?.color ?? "#2563EB" }}
+        >
+          {profile?.initials ?? "U"}
+        </div>
+        <div className="flex flex-col text-left">
+          <span className="text-xs font-medium text-foreground">{profile?.name ?? "User"}</span>
+          <span className="text-[10px] text-muted-foreground">Switch profile</span>
+        </div>
+      </button>
+    </div>
+  );
+}
+
+export function AppSidebar({ activeView, onViewChange, onAgentClick }: SidebarProps) {
   const { data: dbAgents } = useAgents();
   const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
   const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({
@@ -101,7 +123,7 @@ export function AppSidebar({ activeView, onViewChange }: SidebarProps) {
                   {teamAgents.map((agent) => (
                     <button
                       key={agent.id}
-                      onClick={() => onViewChange("chat")}
+                      onClick={() => onAgentClick ? onAgentClick(agent.id) : onViewChange("chat")}
                       className={cn(
                         "flex items-center gap-2 w-full px-3 py-1.5 rounded text-xs transition-colors",
                         agent.is_active
@@ -131,17 +153,7 @@ export function AppSidebar({ activeView, onViewChange }: SidebarProps) {
         })}
       </div>
 
-      <div className="px-3 py-3 border-t border-border">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-semibold">
-            A
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-medium text-foreground">Abhimanyu</span>
-            <span className="text-[10px] text-muted-foreground">Admin</span>
-          </div>
-        </div>
-      </div>
+      <ProfileFooter />
     </aside>
   );
 }

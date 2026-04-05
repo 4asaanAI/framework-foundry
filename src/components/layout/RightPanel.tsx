@@ -1,6 +1,11 @@
+import { useAgents } from "@/hooks/use-agents";
 import { MOCK_AGENTS } from "@/constants/agents";
 import { Brain, Zap, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface RightPanelProps {
+  selectedAgentId?: string | null;
+}
 
 const MOCK_MEMORIES = [
   { type: "decision", content: "Pricing model: per-seat for SMEs under 50 employees", relevance: 82, tags: ["pricing", "SME"] },
@@ -8,12 +13,13 @@ const MOCK_MEMORIES = [
   { type: "pattern", content: "Email objection: 'too expensive' — counter with ROI calc", relevance: 40, tags: ["sales", "objection"] },
 ];
 
-const PENDING_APPROVALS = [
-  { agent: "Mira", action: "Launch Q2 email campaign", budget: "₹2,500", expires: "47h" },
-];
+export function RightPanel({ selectedAgentId }: RightPanelProps) {
+  const { data: dbAgents } = useAgents();
+  const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
+  const activeAgent = selectedAgentId
+    ? agents.find((a) => a.id === selectedAgentId) ?? agents[0]
+    : agents[0];
 
-export function RightPanel() {
-  const activeAgent = MOCK_AGENTS[0];
   const budgetPct = Math.round((activeAgent.budget_used / activeAgent.budget_tokens) * 100);
 
   return (
@@ -73,32 +79,6 @@ export function RightPanel() {
           ))}
         </div>
       </div>
-
-      {/* Approval Queue */}
-      {PENDING_APPROVALS.length > 0 && (
-        <div className="px-4 py-4">
-          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-            <Clock className="h-3 w-3" /> Pending Approvals
-          </h4>
-          {PENDING_APPROVALS.map((a, i) => (
-            <div key={i} className="p-3 rounded-lg bg-card border border-warning/30 text-xs">
-              <p className="text-foreground font-medium">{a.action}</p>
-              <p className="text-muted-foreground mt-1">By {a.agent} · Budget: {a.budget} · Expires: {a.expires}</p>
-              <div className="flex gap-2 mt-2">
-                <button className="px-3 py-1.5 rounded bg-success text-success-foreground font-semibold hover:bg-success/90 transition-colors">
-                  Approve
-                </button>
-                <button className="px-3 py-1.5 rounded bg-destructive text-destructive-foreground font-semibold hover:bg-destructive/90 transition-colors">
-                  Reject
-                </button>
-                <button className="px-3 py-1.5 rounded bg-card border border-border text-muted-foreground hover:text-foreground transition-colors">
-                  Later
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </aside>
   );
 }
