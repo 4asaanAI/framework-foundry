@@ -27,8 +27,12 @@ export function CRMView() {
   const [showNew, setShowNew] = useState(false);
   const [editTask, setEditTask] = useState<any>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string>("all");
 
-  const tasks = dbTasks ?? [];
+  const tasks = (dbTasks ?? []).filter(t => {
+    if (filter === "all") return true;
+    return t.assigned_agent_id === filter;
+  });
 
   const handleDrop = (status: string) => {
     if (!draggedTaskId) return;
