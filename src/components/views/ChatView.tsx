@@ -122,7 +122,7 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
           const { data: msgs } = await supabase.from("messages").select("*").eq("conversation_id", activeConversation.id);
           if (msgs && msgs.length > 0) {
             for (const m of msgs) {
-              await supabase.from("message_archives").insert({
+              await (supabase as any).from("message_archives").insert({
                 conversation_id: m.conversation_id, original_message_id: m.id,
                 content: m.content, role: m.role,
               });
