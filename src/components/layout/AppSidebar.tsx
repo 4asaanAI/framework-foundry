@@ -48,7 +48,7 @@ const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "approvals", label: "Approvals", icon: Shield },
-  { id: "integrations", label: "Integrations", icon: Blocks },
+  { id: "customize", label: "Customize", icon: Blocks },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 

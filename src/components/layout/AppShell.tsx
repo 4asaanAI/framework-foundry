@@ -11,7 +11,7 @@ import { DashboardView } from "@/components/views/DashboardView";
 import { ApprovalsView } from "@/components/views/ApprovalsView";
 import { SettingsView } from "@/components/views/SettingsView";
 import { AnalyticsView } from "@/components/views/AnalyticsView";
-import { IntegrationsView } from "@/components/views/IntegrationsView";
+import { CustomizeView } from "@/components/views/CustomizeView";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAgents } from "@/hooks/use-agents";
 import { MOCK_AGENTS } from "@/constants/agents";
@@ -42,7 +42,7 @@ export function AppShell() {
       case "dashboard": return <DashboardView />;
       case "analytics": return <AnalyticsView />;
       case "approvals": return <ApprovalsView />;
-      case "integrations": return <IntegrationsView />;
+      case "customize": return <CustomizeView />;
       case "settings": return <SettingsView />;
       default: return <ChatView selectedAgentId={selectedAgentId} />;
     }

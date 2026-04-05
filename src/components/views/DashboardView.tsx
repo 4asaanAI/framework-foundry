@@ -1,8 +1,9 @@
+import { useEffect } from "react";
 import { useAgents } from "@/hooks/use-agents";
 import { MOCK_AGENTS } from "@/constants/agents";
-import { Bot, MessageSquare, Zap, DollarSign, Activity, ShieldCheck, AlertTriangle, Clock } from "lucide-react";
+import { Bot, MessageSquare, Zap, DollarSign, Activity, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -26,6 +27,18 @@ export function DashboardView() {
   const { data: dbAgents } = useAgents();
   const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
   const { data: auditLogs } = useAuditLog();
+  const queryClient = useQueryClient();
+
+  // Realtime agent status updates
+  useEffect(() => {
+    const channel = supabase
+      .channel("agents-realtime-dashboard")
+      .on("postgres_changes", { event: "*", schema: "public", table: "agents" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["agents"] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [queryClient]);
 
   const totalBudget = agents.reduce((s, a) => s + a.budget_tokens, 0);
   const totalUsed = agents.reduce((s, a) => s + a.budget_used, 0);
