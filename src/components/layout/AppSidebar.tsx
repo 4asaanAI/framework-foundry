@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useAgents } from "@/hooks/use-agents";
 import { MOCK_AGENTS, TEAM_LABELS } from "@/constants/agents";
 import type { Team } from "@/types/layaa";
 import {
@@ -9,6 +10,7 @@ import {
   CheckSquare,
   LayoutDashboard,
   Shield,
+  Settings,
   ChevronRight,
   ChevronDown,
   Plus,
@@ -26,15 +28,18 @@ const NAV_ITEMS = [
   { id: "tasks", label: "Tasks", icon: CheckSquare },
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "approvals", label: "Approvals", icon: Shield },
+  { id: "settings", label: "Settings", icon: Settings },
 ];
 
 export function AppSidebar({ activeView, onViewChange }: SidebarProps) {
+  const { data: dbAgents } = useAgents();
+  const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
   const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({
     founders_office: true,
     marketing: true,
   });
 
-  const teams = [...new Set(MOCK_AGENTS.map((a) => a.team))] as Team[];
+  const teams = [...new Set(agents.map((a) => a.team))] as Team[];
 
   const toggleTeam = (team: string) => {
     setExpandedTeams((prev) => ({ ...prev, [team]: !prev[team] }));
@@ -42,7 +47,6 @@ export function AppSidebar({ activeView, onViewChange }: SidebarProps) {
 
   return (
     <aside className="flex flex-col w-[240px] h-full bg-background border-r border-border shrink-0">
-      {/* New Conversation */}
       <div className="px-3 py-3">
         <button
           onClick={() => onViewChange("chat")}
@@ -53,7 +57,6 @@ export function AppSidebar({ activeView, onViewChange }: SidebarProps) {
         </button>
       </div>
 
-      {/* Nav */}
       <nav className="px-2 space-y-0.5">
         {NAV_ITEMS.map((item) => (
           <button
@@ -77,13 +80,12 @@ export function AppSidebar({ activeView, onViewChange }: SidebarProps) {
         ))}
       </nav>
 
-      {/* Agent List */}
       <div className="mt-4 px-2 flex-1 overflow-y-auto">
         <h4 className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
           Agents
         </h4>
         {teams.map((team) => {
-          const teamAgents = MOCK_AGENTS.filter((a) => a.team === team);
+          const teamAgents = agents.filter((a) => a.team === team);
           const isExpanded = expandedTeams[team];
           return (
             <div key={team} className="mb-1">
@@ -129,7 +131,6 @@ export function AppSidebar({ activeView, onViewChange }: SidebarProps) {
         })}
       </div>
 
-      {/* Profile */}
       <div className="px-3 py-3 border-t border-border">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-semibold">

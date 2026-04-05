@@ -1,12 +1,16 @@
+import { useState } from "react";
 import { useAgents } from "@/hooks/use-agents";
 import { MOCK_AGENTS, TEAM_LABELS } from "@/constants/agents";
 import { cn } from "@/lib/utils";
-import { Zap, TrendingUp, Loader2 } from "lucide-react";
+import { Zap, TrendingUp, Loader2, ArrowRightLeft } from "lucide-react";
+import { TransferTokensDialog } from "@/components/dialogs/TransferTokensDialog";
+import type { AgentRow } from "@/hooks/use-agents";
 
 export function AgentsView() {
   const { data: dbAgents, isLoading } = useAgents();
   const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
   const teams = [...new Set(agents.map((a) => a.team))];
+  const [transferAgent, setTransferAgent] = useState<AgentRow | null>(null);
 
   if (isLoading) {
     return (
@@ -33,6 +37,7 @@ export function AgentsView() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {teamAgents.map((agent) => {
                   const budgetPct = agent.budget_tokens > 0 ? (agent.budget_used / agent.budget_tokens) * 100 : 0;
+                  const exhausted = budgetPct >= 100;
                   return (
                     <div
                       key={agent.id}
@@ -53,6 +58,7 @@ export function AgentsView() {
                               agent.status === "idle" && "bg-muted-foreground",
                               agent.status === "thinking" && "bg-primary animate-pulse-glow",
                               agent.status === "error" && "bg-destructive",
+                              agent.status === "budget_exhausted" && "bg-warning",
                             )} />
                           </div>
                           <p className="text-xs text-muted-foreground truncate">{agent.description}</p>
@@ -62,7 +68,7 @@ export function AgentsView() {
                         <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
                           <div
                             className={cn("h-full rounded-full transition-all", budgetPct > 80 ? "bg-warning" : "bg-primary/60")}
-                            style={{ width: `${budgetPct}%` }}
+                            style={{ width: `${Math.min(budgetPct, 100)}%` }}
                           />
                         </div>
                         <span className="text-[10px] text-muted-foreground font-mono">{budgetPct.toFixed(0)}%</span>
@@ -70,6 +76,16 @@ export function AgentsView() {
                       <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
                         <span className="flex items-center gap-1"><Zap className="h-3 w-3" />{agent.llm_provider}</span>
                         <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3" />v{agent.prompt_version}</span>
+                        {agent.budget_loaned > 0 && (
+                          <span className="text-warning">Loaned: {agent.budget_loaned.toLocaleString()}</span>
+                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setTransferAgent(agent as AgentRow); }}
+                          className="ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted hover:bg-primary/10 hover:text-primary transition-colors"
+                          title="Transfer tokens"
+                        >
+                          <ArrowRightLeft className="h-3 w-3" /> Transfer
+                        </button>
                       </div>
                     </div>
                   );
@@ -79,6 +95,12 @@ export function AgentsView() {
           );
         })}
       </div>
+      <TransferTokensDialog
+        open={!!transferAgent}
+        onOpenChange={(o) => !o && setTransferAgent(null)}
+        sourceAgent={transferAgent}
+        allAgents={agents as AgentRow[]}
+      />
     </div>
   );
 }

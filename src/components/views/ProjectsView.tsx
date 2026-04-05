@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useProjects } from "@/hooks/use-projects";
 import { FolderKanban, Plus, Users, Loader2 } from "lucide-react";
+import { NewProjectDialog } from "@/components/dialogs/NewProjectDialog";
 
 const MOCK_PROJECTS = [
   { id: "1", name: "EduFlow", description: "AI-powered education platform for client delivery", agent_count: 3, is_active: true },
@@ -10,6 +12,7 @@ const MOCK_PROJECTS = [
 export function ProjectsView() {
   const { data: dbProjects, isLoading } = useProjects();
   const projects = dbProjects && dbProjects.length > 0 ? dbProjects : MOCK_PROJECTS;
+  const [showNew, setShowNew] = useState(false);
 
   if (isLoading) {
     return (
@@ -26,7 +29,10 @@ export function ProjectsView() {
           <h1 className="text-lg font-semibold text-foreground">Projects</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Organize work, assign agents, attach knowledge bases</p>
         </div>
-        <button className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+        <button
+          onClick={() => setShowNew(true)}
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
           <Plus className="h-4 w-4" /> New Project
         </button>
       </div>
@@ -56,6 +62,7 @@ export function ProjectsView() {
           </div>
         ))}
       </div>
+      <NewProjectDialog open={showNew} onOpenChange={setShowNew} />
     </div>
   );
 }
