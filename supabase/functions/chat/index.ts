@@ -16,6 +16,21 @@ serve(async (req) => {
     const defaultSystem = `You are ${agentName || "an AI assistant"}, whose role is: ${agentRole || "helpful assistant"}. ${systemPrompt || ""}
 Keep answers clear, concise, and professional. Use markdown formatting when helpful.`;
 
+    // Normalize model names — add provider prefix if missing
+    const MODEL_MAP: Record<string, string> = {
+      "gpt-5": "openai/gpt-5",
+      "gpt-5-mini": "openai/gpt-5-mini",
+      "gpt-5-nano": "openai/gpt-5-nano",
+      "gpt-5.2": "openai/gpt-5.2",
+      "gemini-2.5-pro": "google/gemini-2.5-pro",
+      "gemini-2.5-flash": "google/gemini-2.5-flash",
+      "gemini-2.5-flash-lite": "google/gemini-2.5-flash-lite",
+      "gemini-3-flash-preview": "google/gemini-3-flash-preview",
+      "gemini-3.1-pro-preview": "google/gemini-3.1-pro-preview",
+    };
+    const rawModel = model || "google/gemini-3-flash-preview";
+    const resolvedModel = MODEL_MAP[rawModel] || rawModel;
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -23,7 +38,7 @@ Keep answers clear, concise, and professional. Use markdown formatting when help
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: model || "google/gemini-3-flash-preview",
+        model: resolvedModel,
         messages: [
           { role: "system", content: defaultSystem },
           ...messages,
