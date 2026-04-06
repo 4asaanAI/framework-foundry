@@ -5,8 +5,8 @@ import { useProjects } from "@/hooks/use-projects";
 import { useSkills } from "@/hooks/use-skills";
 import { useConnectors } from "@/hooks/use-connectors";
 import { usePlugins } from "@/hooks/use-plugins";
-import { Bot, FolderKanban, Wrench, Plug, Puzzle, MessageSquare, Settings, History } from "lucide-react";
 import { useConversations } from "@/hooks/use-conversations";
+import { Bot, FolderKanban, Wrench, Plug, Puzzle, MessageSquare, Settings, History } from "lucide-react";
 
 interface GlobalSearchDialogProps {
   open: boolean;
@@ -34,7 +34,7 @@ export function GlobalSearchDialog({ open, onOpenChange, onNavigate, onAgentClic
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput placeholder="Search agents, projects, skills, settings..." />
+      <CommandInput placeholder="Search agents, projects, chats, skills, settings..." />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
 
@@ -73,6 +73,24 @@ export function GlobalSearchDialog({ open, onOpenChange, onNavigate, onAgentClic
                 <span>{p.name}</span>
               </CommandItem>
             ))}
+          </CommandGroup>
+        )}
+
+        {/* Chat History */}
+        {conversations && conversations.length > 0 && (
+          <CommandGroup heading="Chat History">
+            {conversations.slice(0, 15).map((c: any) => {
+              const agentInfo = c.agents;
+              return (
+                <CommandItem key={c.id} onSelect={() => handleSelect("chat", c.agent_id)}>
+                  <History className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="text-left truncate flex-1">{c.title}</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground text-right shrink-0">
+                    {agentInfo?.name || "Agent"}
+                  </span>
+                </CommandItem>
+              );
+            })}
           </CommandGroup>
         )}
 
