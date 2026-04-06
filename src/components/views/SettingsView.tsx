@@ -5,12 +5,16 @@ import { NewConnectorDialog } from "@/components/dialogs/NewConnectorDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { TIMEZONE_OPTIONS, getStoredTimezone } from "@/components/layout/AppFooter";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { TIMEZONE_OPTIONS, getStoredTimezone } from "@/components/layout/AppFooter";
+import { BUILT_IN_PROVIDERS, getProviderById } from "@/lib/llm";
+import { useLLMConfig, useSaveLLMConfig } from "@/hooks/use-llm";
 
 const SECTIONS = [
   { icon: Clock, label: "Preferences", type: null, desc: "Timezone, display, and general preferences" },
-  { icon: Server, label: "LLM Providers", type: "llm_provider", desc: "Configure OpenAI, Google, Anthropic API connections" },
+  { icon: Server, label: "LLM Configuration", type: null, desc: "Switch AI providers, models, and API keys" },
   { icon: Key, label: "Credential Vault", type: "credential", desc: "Manage API keys (stored encrypted)" },
   { icon: Database, label: "Database", type: null, desc: "Connection status and database info" },
   { icon: Globe, label: "Webhooks", type: "webhook", desc: "Webhook URLs, API key authentication" },
@@ -130,6 +134,164 @@ function PreferencesSection() {
   );
 }
 
+function LLMConfigSection() {
+  const { data: config, isLoading } = useLLMConfig();
+  const saveMutation = useSaveLLMConfig();
+  const [provider, setProvider] = useState("");
+  const [model, setModel] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+
+  // Initialize form from DB
+  if (config && !initialized) {
+    setProvider(config.provider);
+    setModel(config.model);
+    setApiKey(config.apiKey);
+    setBaseUrl(config.baseUrl);
+    setInitialized(true);
+  }
+
+  if (isLoading) return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mx-auto my-4" />;
+
+  const selectedProvider = getProviderById(provider);
+  const models = selectedProvider?.models ?? [];
+  const showApiKey = provider !== "lovable";
+  const showBaseUrl = provider === "custom";
+
+  const handleProviderChange = (val: string) => {
+    setProvider(val);
+    const prov = getProviderById(val);
+    if (prov && prov.models.length > 0) setModel(prov.models[0]);
+    else setModel("");
+    if (prov && prov.baseUrl) setBaseUrl(prov.baseUrl);
+    else setBaseUrl("");
+  };
+
+  const handleSave = async () => {
+    const finalBaseUrl = showBaseUrl
+      ? baseUrl
+      : selectedProvider?.baseUrl || "";
+    saveMutation.mutate(
+      { provider, model, apiKey, baseUrl: finalBaseUrl },
+      { onSuccess: () => toast.success("LLM configuration saved!") }
+    );
+  };
+
+  const handleTest = async () => {
+    setTesting(true);
+    try {
+      const chatUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+      const resp = await fetch(chatUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: "Say hello in exactly 3 words." }],
+          model: model || "google/gemini-3-flash-preview",
+          agentName: "Test",
+          agentRole: "tester",
+          systemPrompt: "Reply briefly.",
+        }),
+      });
+      if (resp.ok) toast.success("✅ LLM connection works!");
+      else {
+        const err = await resp.json().catch(() => ({}));
+        toast.error(`Test failed: ${err.error || resp.statusText}`);
+      }
+    } catch (e: any) {
+      toast.error(`Test failed: ${e.message}`);
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4 pl-2">
+      <p className="text-[10px] text-muted-foreground">
+        The default is Lovable AI (free, no API key needed). Switch to any provider below to use your own API key.
+      </p>
+
+      <div>
+        <Label className="text-xs">AI Provider</Label>
+        <Select value={provider} onValueChange={handleProviderChange}>
+          <SelectTrigger className="w-72 h-9 text-xs mt-1">
+            <SelectValue placeholder="Select provider" />
+          </SelectTrigger>
+          <SelectContent>
+            {BUILT_IN_PROVIDERS.map(p => (
+              <SelectItem key={p.id} value={p.id} className="text-xs">
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label className="text-xs">Model</Label>
+        {models.length > 0 ? (
+          <Select value={model} onValueChange={setModel}>
+            <SelectTrigger className="w-72 h-9 text-xs mt-1">
+              <SelectValue placeholder="Select model" />
+            </SelectTrigger>
+            <SelectContent>
+              {models.map(m => (
+                <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Input
+            value={model}
+            onChange={e => setModel(e.target.value)}
+            placeholder="Enter model name (e.g. my-custom-model)"
+            className="w-72 h-9 text-xs mt-1"
+          />
+        )}
+      </div>
+
+      {showApiKey && (
+        <div>
+          <Label className="text-xs">API Key</Label>
+          <Input
+            type="password"
+            value={apiKey}
+            onChange={e => setApiKey(e.target.value)}
+            placeholder="sk-... or your provider's API key"
+            className="w-72 h-9 text-xs mt-1"
+          />
+        </div>
+      )}
+
+      {showBaseUrl && (
+        <div>
+          <Label className="text-xs">API Base URL</Label>
+          <Input
+            value={baseUrl}
+            onChange={e => setBaseUrl(e.target.value)}
+            placeholder="https://your-provider.com/v1/chat/completions"
+            className="w-72 h-9 text-xs mt-1"
+          />
+          <p className="text-[9px] text-muted-foreground mt-1">Must be OpenAI-compatible endpoint</p>
+        </div>
+      )}
+
+      <div className="flex gap-2 pt-1">
+        <Button size="sm" onClick={handleSave} disabled={saveMutation.isPending}>
+          {saveMutation.isPending ? "Saving…" : "Save"}
+        </Button>
+        <Button size="sm" variant="outline" onClick={handleTest} disabled={testing}>
+          {testing ? "Testing…" : "Test Connection"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function SettingsView() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [dialogType, setDialogType] = useState<string | null>(null);
@@ -169,6 +331,7 @@ export function SettingsView() {
                   )}
                   {s.type && <ConnectorList type={s.type} />}
                   {s.label === "Preferences" && <PreferencesSection />}
+                  {s.label === "LLM Configuration" && <LLMConfigSection />}
                   {s.label === "Database" && <DatabaseSection />}
                   {s.label === "Security" && <SecuritySection />}
                 </div>
