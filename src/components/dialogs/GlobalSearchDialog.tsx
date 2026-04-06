@@ -5,7 +5,8 @@ import { useProjects } from "@/hooks/use-projects";
 import { useSkills } from "@/hooks/use-skills";
 import { useConnectors } from "@/hooks/use-connectors";
 import { usePlugins } from "@/hooks/use-plugins";
-import { Bot, FolderKanban, Wrench, Plug, Puzzle, MessageSquare, Settings } from "lucide-react";
+import { Bot, FolderKanban, Wrench, Plug, Puzzle, MessageSquare, Settings, History } from "lucide-react";
+import { useConversations } from "@/hooks/use-conversations";
 
 interface GlobalSearchDialogProps {
   open: boolean;
