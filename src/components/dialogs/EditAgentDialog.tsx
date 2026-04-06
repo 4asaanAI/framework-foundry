@@ -10,6 +10,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Trash2, Plus, Brain, FileText, History, Database } from "lucide-react";
 import { AgentKBTab } from "@/components/dialogs/AgentKBTab";
+import { AgentMemoryPanel } from "@/components/dialogs/AgentMemoryPanel";
 import type { AgentRow } from "@/hooks/use-agents";
 
 interface EditAgentDialogProps {
@@ -201,49 +202,8 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
             {agent && <AgentKBTab agentId={agent.id} />}
           </TabsContent>
 
-          <TabsContent value="memory" className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <Label>Add Memory</Label>
-              <div className="flex gap-2">
-                <select
-                  value={newMemoryCategory}
-                  onChange={(e) => setNewMemoryCategory(e.target.value)}
-                  className="px-2 py-1.5 rounded-md bg-card border border-border text-xs text-foreground"
-                >
-                  {MEMORY_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c.replace(/_/g, " ")}</option>
-                  ))}
-                </select>
-                <Input
-                  value={newMemory}
-                  onChange={(e) => setNewMemory(e.target.value)}
-                  placeholder="Add a memory entry..."
-                  className="flex-1"
-                  onKeyDown={(e) => { if (e.key === "Enter") addMemory(); }}
-                />
-                <Button size="sm" onClick={addMemory}><Plus className="h-3.5 w-3.5" /></Button>
-              </div>
-            </div>
-
-            <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {memories?.map((mem) => (
-                <div key={mem.id} className="flex items-start gap-2 p-2.5 rounded-lg bg-card border border-border">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-foreground">{mem.content}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-background text-muted-foreground">{mem.category}</span>
-                      <span className="text-[9px] text-muted-foreground">conf: {(mem.confidence * 100).toFixed(0)}%</span>
-                    </div>
-                  </div>
-                  <button onClick={() => deleteMemory(mem.id)} className="text-muted-foreground hover:text-destructive p-1">
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-              {(!memories || memories.length === 0) && (
-                <p className="text-xs text-muted-foreground text-center py-4">No memories stored for this agent</p>
-              )}
-            </div>
+          <TabsContent value="memory">
+            {agent && <AgentMemoryPanel agentId={agent.id} />}
           </TabsContent>
 
           <TabsContent value="history" className="space-y-4 pt-2">
