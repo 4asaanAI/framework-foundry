@@ -16,22 +16,42 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(supabaseUrl, serviceKey);
 
-    // Resolve which API key + base URL to use
+    // 1. Resolve API key + base URL: Agent-level override > Global settings > Lovable AI default
     let apiKey = Deno.env.get("LOVABLE_API_KEY");
     let baseUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
+    let resolvedModel = model || "google/gemini-3-flash-preview";
 
-    // Check if agent has a custom API key
+    // Check agent-level custom config first
+    let agentHasCustom = false;
     if (agentId) {
       const { data: agent } = await sb.from("agents").select("custom_api_key, custom_api_base_url").eq("id", agentId).single();
       if (agent?.custom_api_key && agent.custom_api_key.trim() !== "") {
         apiKey = agent.custom_api_key;
+        agentHasCustom = true;
         if (agent.custom_api_base_url && agent.custom_api_base_url.trim() !== "") {
           baseUrl = agent.custom_api_base_url;
         }
       }
     }
 
-    if (!apiKey) throw new Error("No API key available — configure LOVABLE_API_KEY or set a custom key on the agent");
+    // If no agent-level override, check global LLM settings
+    if (!agentHasCustom) {
+      const { data: settings } = await sb.from("settings")
+        .select("key, value")
+        .in("key", ["llm_provider", "llm_model", "llm_api_key", "llm_base_url"]);
+      
+      const settingsMap: Record<string, string> = {};
+      (settings ?? []).forEach((s: any) => { settingsMap[s.key] = s.value; });
+      
+      const globalProvider = settingsMap["llm_provider"] || "lovable";
+      if (globalProvider !== "lovable" && settingsMap["llm_api_key"]) {
+        apiKey = settingsMap["llm_api_key"];
+        if (settingsMap["llm_base_url"]) baseUrl = settingsMap["llm_base_url"];
+        if (settingsMap["llm_model"]) resolvedModel = settingsMap["llm_model"];
+      }
+    }
+
+    if (!apiKey) throw new Error("No API key available — configure in Settings > LLM Configuration or set a custom key on the agent");
 
     // Fetch agent memories for context
     let memoryContext = "";
@@ -46,7 +66,7 @@ serve(async (req) => {
 
       if (memories && memories.length > 0) {
         memoryContext = "\n\nYour relevant memories:\n" +
-          memories.map(m => `- [${m.category}] (confidence: ${m.confidence}) ${m.content}`).join("\n");
+          memories.map((m: any) => `- [${m.category}] (confidence: ${m.confidence}) ${m.content}`).join("\n");
       }
 
       // Fetch KB docs
@@ -57,7 +77,7 @@ serve(async (req) => {
 
       if (kbDocs && kbDocs.length > 0) {
         kbContext = "\n\nYour knowledge base documents:\n" +
-          kbDocs.map(d => `[${d.filename}] ${d.content.slice(0, 3000)}`).join("\n---\n");
+          kbDocs.map((d: any) => `[${d.filename}] ${d.content.slice(0, 3000)}`).join("\n---\n");
       }
 
       // Fetch active tasks assigned to this agent
@@ -69,7 +89,7 @@ serve(async (req) => {
 
       if (tasks && tasks.length > 0) {
         memoryContext += "\n\nYour active tasks:\n" +
-          tasks.map(t => `- [${t.status}] ${t.title}${t.due_date ? ` (due: ${t.due_date})` : ""}`).join("\n");
+          tasks.map((t: any) => `- [${t.status}] ${t.title}${t.due_date ? ` (due: ${t.due_date})` : ""}`).join("\n");
       }
     }
 
@@ -89,8 +109,7 @@ When you learn important facts, decisions, or preferences from the conversation,
       "gemini-3-flash-preview": "google/gemini-3-flash-preview",
       "gemini-3.1-pro-preview": "google/gemini-3.1-pro-preview",
     };
-    const rawModel = model || "google/gemini-3-flash-preview";
-    const resolvedModel = MODEL_MAP[rawModel] || rawModel;
+    resolvedModel = MODEL_MAP[resolvedModel] || resolvedModel;
 
     const response = await fetch(baseUrl, {
       method: "POST",
@@ -132,7 +151,6 @@ When you learn important facts, decisions, or preferences from the conversation,
     const writer = writable.getWriter();
     const reader = response.body!.getReader();
     const decoder = new TextDecoder();
-    const encoder = new TextEncoder();
 
     (async () => {
       let textBuffer = "";
@@ -169,7 +187,6 @@ When you learn important facts, decisions, or preferences from the conversation,
           await writer.write(value);
         }
         
-        // Process remaining buffer
         if (textBuffer.trim()) {
           for (const line of textBuffer.split("\n")) {
             if (line.startsWith("data: ") && line.slice(6).trim() !== "[DONE]") {
@@ -186,15 +203,13 @@ When you learn important facts, decisions, or preferences from the conversation,
           }
         }
 
-        // After stream completes, update agent budget and log usage
+        // Update agent budget and log usage
         if (agentId && (totalIn > 0 || totalOut > 0)) {
           const totalTokens = totalIn + totalOut;
-          
           const { data: agent } = await sb.from("agents").select("budget_used").eq("id", agentId).single();
           if (agent) {
             await sb.from("agents").update({ budget_used: agent.budget_used + totalTokens }).eq("id", agentId);
           }
-          
           if (profileId) {
             await sb.from("token_usage_log").insert({
               agent_id: agentId,
@@ -208,7 +223,7 @@ When you learn important facts, decisions, or preferences from the conversation,
           }
         }
 
-        // Auto-extract memories from the agent's response (self-memory update)
+        // Auto-extract memories
         if (agentId && fullContent && fullContent.length > 50) {
           try {
             const extractKey = Deno.env.get("LOVABLE_API_KEY");
