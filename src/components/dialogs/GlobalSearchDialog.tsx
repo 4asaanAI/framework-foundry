@@ -21,6 +21,7 @@ export function GlobalSearchDialog({ open, onOpenChange, onNavigate, onAgentClic
   const { data: skills } = useSkills();
   const { data: connectors } = useConnectors();
   const { data: plugins } = usePlugins();
+  const { data: conversations } = useConversations();
 
   const handleSelect = (type: string, id?: string) => {
     onOpenChange(false);
