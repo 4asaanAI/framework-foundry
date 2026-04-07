@@ -32,6 +32,7 @@ import {
   Blocks,
   Kanban,
   Mail,
+  GitBranch,
 } from "lucide-react";
 import { EditProfileDialog } from "@/components/dialogs/EditProfileDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -100,6 +101,7 @@ function ChatHistoryItem({ conv, agents, onSelect }: { conv: any; agents: any[];
   return (
     <div className="group flex items-center gap-1.5 rounded-lg hover:bg-card transition-colors px-2 py-1.5">
       {conv.is_starred && <Star className="h-2.5 w-2.5 text-warning shrink-0 fill-warning" />}
+      {conv.branch_parent_id && <GitBranch className="h-2.5 w-2.5 text-accent shrink-0" />}
       {renaming ? (
         <div className="flex items-center gap-1 flex-1 min-w-0">
           <input
@@ -113,16 +115,13 @@ function ChatHistoryItem({ conv, agents, onSelect }: { conv: any; agents: any[];
           <button onClick={() => setRenaming(false)} className="p-0.5 text-muted-foreground"><X className="h-3 w-3" /></button>
         </div>
       ) : (
-        <button onClick={onSelect} className="flex items-center gap-1.5 flex-1 min-w-0 text-left">
+        <button onClick={onSelect} className="flex flex-col flex-1 min-w-0 text-left">
+          <span className="text-[11px] text-muted-foreground truncate group-hover:text-foreground transition-colors">
+            {conv.branch_parent_id ? `↳ ${conv.title}` : conv.title}
+          </span>
           {agent && (
-            <div
-              className="w-4 h-4 rounded flex items-center justify-center text-[8px] font-bold shrink-0"
-              style={{ backgroundColor: agent.avatar_color + "20", color: agent.avatar_color }}
-            >
-              {agent.avatar_initials}
-            </div>
+            <span className="text-[9px] text-muted-foreground/60 text-right w-full truncate">{agent.name}</span>
           )}
-          <span className="text-[11px] text-muted-foreground truncate group-hover:text-foreground transition-colors">{conv.title}</span>
         </button>
       )}
       {!renaming && (
