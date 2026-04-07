@@ -706,8 +706,10 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
             </div>
           </div>
         </div>
+        </div>
       );
     });
+  };
   };
 
   const renderPickerList = (items: any[], type: "skill" | "command" | "mention") => (
