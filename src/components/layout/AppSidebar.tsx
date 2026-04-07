@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useAgents } from "@/hooks/use-agents";
 import { useConversations } from "@/hooks/use-conversations";
