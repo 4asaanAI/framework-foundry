@@ -41,11 +41,11 @@ export async function createConversation(
 }
 
 export async function updateConversation(
-  conversationId: string, updates: Partial<Pick<Conversation, "title" | "is_starred" | "is_archived" | "status">>
+  conversationId: string, updates: Record<string, any>
 ): Promise<Conversation> {
   const { data, error } = await supabase
     .from("conversations")
-    .update(updates)
+    .update(updates as any)
     .eq("id", conversationId)
     .select("*")
     .single();
@@ -152,7 +152,7 @@ export async function updateAgentBudget(agentId: string, tokensUsed: number, cos
 
 export async function getAgentMemories(agentId: string, memoryType?: string): Promise<AgentMemory[]> {
   let query = supabase.from("agent_memories").select("*").eq("agent_id", agentId).order("created_at", { ascending: false });
-  if (memoryType) query = query.eq("memory_type", memoryType);
+  if (memoryType) query = query.eq("memory_type", memoryType as any);
   const { data, error } = await query;
   if (error) throw new Error(`Failed to fetch memories: ${error.message}`);
   return (data ?? []) as AgentMemory[];
@@ -197,7 +197,7 @@ export async function searchMemories(agentId: string, query: string): Promise<Ag
 
 export async function getTasks(filters?: { status?: string; assigned_agent_id?: string; created_by_profile?: string }): Promise<Task[]> {
   let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
-  if (filters?.status) query = query.eq("status", filters.status);
+  if (filters?.status) query = query.eq("status", filters.status as any);
   if (filters?.assigned_agent_id) query = query.eq("assigned_agent_id", filters.assigned_agent_id);
   if (filters?.created_by_profile) query = query.eq("created_by_profile", filters.created_by_profile);
   const { data, error } = await query;
@@ -226,7 +226,7 @@ export async function deleteTask(taskId: string): Promise<void> {
 
 export async function getApprovals(status?: string): Promise<ApprovalItem[]> {
   let query = supabase.from("approvals").select("*").order("created_at", { ascending: false });
-  if (status) query = query.eq("status", status);
+  if (status) query = query.eq("status", status as any);
   const { data, error } = await query;
   if (error) throw new Error(`Failed to fetch approvals: ${error.message}`);
   return (data ?? []) as ApprovalItem[];
