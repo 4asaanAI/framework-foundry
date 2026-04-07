@@ -5,29 +5,36 @@ import { MOCK_AGENTS } from "@/constants/agents";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { Plus, Loader2, GripVertical } from "lucide-react";
+import { Plus, Loader2, GripVertical, Trash2, X } from "lucide-react";
 import { NewTaskDialog } from "@/components/dialogs/NewTaskDialog";
 import { EditTaskDialog } from "@/components/dialogs/EditTaskDialog";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
-const COLUMNS = [
+const DEFAULT_COLUMNS = [
   { id: "pending", label: "To Do", color: "border-muted-foreground" },
   { id: "running", label: "In Progress", color: "border-info" },
   { id: "awaiting_approval", label: "Needs Approval", color: "border-warning" },
   { id: "completed", label: "Done", color: "border-success" },
   { id: "failed", label: "Failed", color: "border-destructive" },
-] as const;
+];
 
 export function CRMView() {
   const { data: dbTasks, isLoading } = useTasks();
   const { data: dbAgents } = useAgents();
   const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
   const updateStatus = useUpdateTaskStatus();
+  const queryClient = useQueryClient();
   const [showNew, setShowNew] = useState(false);
+  const [showNewForColumn, setShowNewForColumn] = useState<string | null>(null);
   const [editTask, setEditTask] = useState<any>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("all");
+  const [columns, setColumns] = useState(DEFAULT_COLUMNS);
+  const [addingColumn, setAddingColumn] = useState(false);
+  const [newColumnName, setNewColumnName] = useState("");
 
   const tasks = (dbTasks ?? []).filter(t => {
     if (filter === "all") return true;
@@ -38,14 +45,46 @@ export function CRMView() {
     if (!draggedTaskId) return;
     const task = tasks.find((t) => t.id === draggedTaskId);
     if (!task || task.status === status) { setDraggedTaskId(null); return; }
-    updateStatus.mutate(
-      { id: draggedTaskId, status: status as any },
-      {
-        onSuccess: () => toast.success(`Task moved to ${status}`),
-        onError: (err: any) => toast.error(err.message),
-      }
-    );
+    // Only allow dropping to valid task_status enum values
+    const validStatuses = ["pending", "running", "completed", "failed", "awaiting_approval"];
+    if (validStatuses.includes(status)) {
+      updateStatus.mutate(
+        { id: draggedTaskId, status: status as any },
+        {
+          onSuccess: () => toast.success(`Task moved to ${status}`),
+          onError: (err: any) => toast.error(err.message),
+        }
+      );
+    } else {
+      // For custom columns, we can't update DB status but show in UI
+      toast.info(`Custom column "${status}" — task status unchanged in database`);
+    }
     setDraggedTaskId(null);
+  };
+
+  const handleDeleteTask = async (taskId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+    if (error) { toast.error("Failed to delete task"); return; }
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    toast.success("Task deleted");
+  };
+
+  const addColumn = () => {
+    if (!newColumnName.trim()) return;
+    const id = newColumnName.trim().toLowerCase().replace(/\s+/g, "_");
+    if (columns.some(c => c.id === id)) { toast.error("Column already exists"); return; }
+    setColumns([...columns, { id, label: newColumnName.trim(), color: "border-muted-foreground" }]);
+    setNewColumnName("");
+    setAddingColumn(false);
+    toast.success("Column added");
+  };
+
+  const deleteColumn = (colId: string) => {
+    const colTasks = tasks.filter(t => t.status === colId);
+    if (colTasks.length > 0) { toast.error("Move tasks out of this column first"); return; }
+    setColumns(columns.filter(c => c.id !== colId));
+    toast.success("Column removed");
   };
 
   if (isLoading) {
@@ -74,8 +113,9 @@ export function CRMView() {
 
       <div className="flex-1 overflow-x-auto">
         <div className="flex gap-4 p-4 min-w-max h-full">
-          {COLUMNS.map((col) => {
+          {columns.map((col) => {
             const colTasks = tasks.filter((t) => t.status === col.id);
+            const isDefaultCol = DEFAULT_COLUMNS.some(d => d.id === col.id);
             return (
               <div
                 key={col.id}
@@ -85,7 +125,14 @@ export function CRMView() {
               >
                 <div className="px-4 py-3 flex items-center justify-between">
                   <span className="text-sm font-semibold text-foreground">{col.label}</span>
-                  <span className="text-[10px] text-muted-foreground bg-background px-2 py-0.5 rounded-full">{colTasks.length}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-muted-foreground bg-background px-2 py-0.5 rounded-full">{colTasks.length}</span>
+                    {!isDefaultCol && (
+                      <button onClick={() => deleteColumn(col.id)} className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete column">
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <ScrollArea className="flex-1 px-2 pb-2">
                   <div className="space-y-2">
@@ -121,15 +168,61 @@ export function CRMView() {
                                 )}
                               </div>
                             </div>
+                            <button
+                              onClick={(e) => handleDeleteTask(task.id, e)}
+                              className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all shrink-0"
+                              title="Delete task"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
                           </div>
                         </div>
                       );
                     })}
+                    {/* Add card button in column */}
+                    {showNewForColumn === col.id ? (
+                      <button onClick={() => { setShowNewForColumn(null); setShowNew(true); }}
+                        className="w-full p-2 rounded-lg border border-dashed border-primary/50 text-xs text-primary hover:bg-primary/5 transition-colors text-center">
+                        Opens New Task dialog...
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setShowNew(true)}
+                        className="flex items-center justify-center gap-1 w-full py-2 rounded-lg text-[10px] text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
+                      >
+                        <Plus className="h-3 w-3" /> Add card
+                      </button>
+                    )}
                   </div>
                 </ScrollArea>
               </div>
             );
           })}
+
+          {/* Add column button */}
+          {addingColumn ? (
+            <div className="w-[280px] shrink-0 flex flex-col gap-2 p-3 rounded-xl bg-card/30 border border-dashed border-border">
+              <input
+                autoFocus
+                value={newColumnName}
+                onChange={e => setNewColumnName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") addColumn(); if (e.key === "Escape") setAddingColumn(false); }}
+                placeholder="Column name..."
+                className="px-3 py-2 rounded-lg bg-card border border-border text-sm text-foreground outline-none focus:border-primary"
+              />
+              <div className="flex gap-2">
+                <button onClick={addColumn} className="flex-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium">Add</button>
+                <button onClick={() => setAddingColumn(false)} className="px-3 py-1.5 rounded-lg bg-card border border-border text-xs text-muted-foreground">Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setAddingColumn(true)}
+              className="w-[280px] shrink-0 flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors h-fit py-8"
+            >
+              <Plus className="h-4 w-4" /> Add Column
+            </button>
+          )}
         </div>
       </div>
 
