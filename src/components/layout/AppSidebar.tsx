@@ -232,6 +232,8 @@ function ProfileFooter() {
 
 export function AppSidebar({ activeView, onViewChange, onAgentClick }: SidebarProps) {
   const { data: dbAgents } = useAgents();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
   const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({
     founders_office: true,
@@ -244,11 +246,25 @@ export function AppSidebar({ activeView, onViewChange, onAgentClick }: SidebarPr
     setExpandedTeams((prev) => ({ ...prev, [team]: !prev[team] }));
   };
 
+  const handleNewConversation = useCallback(async () => {
+    if (!user) return;
+    const defaultAgent = agents[0];
+    const { data: newConv, error } = await supabase.from("conversations").insert({
+      agent_id: defaultAgent.id, profile_id: user.id, title: "New Conversation",
+    }).select("id").single();
+    if (!error && newConv) {
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      if (onAgentClick) onAgentClick(defaultAgent.id);
+      onViewChange("chat");
+      toast.success("New conversation started");
+    }
+  }, [user, agents, queryClient, onAgentClick, onViewChange]);
+
   return (
     <aside className="flex flex-col w-[240px] h-full bg-background border-r border-border shrink-0">
       <div className="px-3 py-3">
         <button
-          onClick={() => onViewChange("chat")}
+          onClick={handleNewConversation}
           className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-4 w-4" />
