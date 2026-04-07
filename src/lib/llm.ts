@@ -80,3 +80,29 @@ export interface LLMConfig {
   apiKey: string;
   baseUrl: string;
 }
+
+export async function callLLM(
+  messages: Array<{ role: "user" | "assistant"; content: string }>,
+  model: string,
+  provider: string,
+  apiKey: string
+): Promise<string> {
+  const providerConfig = getProviderById(provider);
+  const baseUrl = providerConfig?.baseUrl ?? "https://openrouter.ai/api/v1";
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ model, messages }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`LLM call failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content ?? "";
+}

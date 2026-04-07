@@ -17,9 +17,14 @@ import { NewProjectDialog } from "@/components/dialogs/NewProjectDialog";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ReactMarkdown from "react-markdown";
+import { extractMemoriesFromMessage, saveExtractedMemories } from "@/lib/memory";
+import { detectDelegation, setAgentNameMap } from "@/lib/delegation";
+import { onMessageSent } from "@/lib/webhooks";
+import { useApprovalWorkflow } from "@/hooks/use-approval-workflow";
 
 interface ChatViewProps {
   selectedAgentId?: string | null;
+  onDelegation?: (delegatedConversationId: string, targetAgentId: string, targetAgentName: string) => void;
 }
 
 // Built-in commands triggered by #
@@ -36,7 +41,7 @@ const MAX_INPUT_HISTORY = 50;
 const DRAFT_SAVE_INTERVAL = 2000;
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
-export function ChatView({ selectedAgentId }: ChatViewProps) {
+export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [streaming, setStreaming] = useState(false);
@@ -63,6 +68,7 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
   const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
+  const { submitForApproval } = useApprovalWorkflow();
   const { data: skills } = useSkills();
   const { data: plugins } = usePlugins();
   const { data: connectors } = useConnectors("mcp");
@@ -102,6 +108,11 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
 
   // Reset picker index when picker content changes
   useEffect(() => { setPickerIndex(0); }, [skillPickerOpen, commandPickerOpen, mentionPickerOpen]);
+
+  // Sync agent name map for delegation
+  useEffect(() => {
+    setAgentNameMap(agents.map((a) => ({ id: a.id, name: a.name })));
+  }, [agents]);
 
   // Input history
   const getInputHistory = (): string[] => {
@@ -303,10 +314,16 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
         });
         queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
 
-        // Trigger Sage memory extraction in background (fire-and-forget)
-        supabase.functions.invoke("sage-extract", {
-          body: { conversation_id: conversationId, message_content: fullContent, agent_id: activeAgent.id },
-        }).catch(() => {});
+        // Client-side memory extraction (fire-and-forget)
+        (async () => {
+          try {
+            const extracted = extractMemoriesFromMessage(fullContent);
+            if (extracted.length > 0) {
+              await saveExtractedMemories(activeAgent.id, extracted);
+              console.log(`[Sage] extracted ${extracted.length} memories from agent response`);
+            }
+          } catch { /* ignore */ }
+        })();
 
         // Refresh agent data for updated budget_used
         queryClient.invalidateQueries({ queryKey: ["agents"] });
@@ -492,9 +509,32 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
         mention_agent_id: mentionedAgent?.id ?? null,
       });
       const userMsg = message.trim();
-      setMessage(""); setAttachedFiles([]); 
+      setMessage(""); setAttachedFiles([]);
       localStorage.removeItem(`draft_${activeAgent.id}`);
       queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+
+      // Fire webhook (fire-and-forget)
+      if (user?.id) {
+        onMessageSent({
+          agentId: activeAgent.id,
+          conversationId,
+          messageContent: userMsg,
+          userId: user.id,
+        }).catch(() => {});
+      }
+
+      // Approval keyword detection
+      const APPROVAL_KEYWORDS = ["delete", "send email", "deploy", "modify billing", "change permissions", "financial transaction", "database migration"];
+      const approvalKeyword = APPROVAL_KEYWORDS.find((kw) => userMsg.toLowerCase().includes(kw));
+      if (approvalKeyword) {
+        submitForApproval({
+          agentId: activeAgent.id,
+          actionType: approvalKeyword.replace(/\s+/g, "_"),
+          actionDescription: `User requested: "${userMsg.slice(0, 100)}"`,
+          actionPayload: { message: userMsg },
+          conversationId,
+        }).catch(() => {});
+      }
 
       // If there's a mentioned agent, delegate to them first
       if (mentionedAgent && mentionedAgent.id !== activeAgent.id) {

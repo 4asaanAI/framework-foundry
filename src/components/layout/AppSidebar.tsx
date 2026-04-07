@@ -32,6 +32,7 @@ import {
   Blocks,
   Kanban,
   Mail,
+  Brain,
 } from "lucide-react";
 import { EditProfileDialog } from "@/components/dialogs/EditProfileDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -51,6 +52,7 @@ const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "approvals", label: "Approvals", icon: Shield },
+  { id: "sage", label: "Sage Memory", icon: Brain },
   { id: "messages", label: "Messages", icon: Mail },
   { id: "customize", label: "Customize", icon: Blocks },
   { id: "settings", label: "Settings", icon: Settings },
