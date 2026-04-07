@@ -610,13 +610,28 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
   const hasSplitScreen = !!mentionedAgent && mentionedAgent.id !== activeAgent.id;
 
   const renderMessages = () => {
-    return displayMessages.map((msg: any) => {
+    return displayMessages.map((msg: any, idx: number) => {
       const isMentionResponse = msg.role === "mention_response";
       const mentionAgent = isMentionResponse ? agents.find(a => a.id === msg.mention_agent_id) : null;
       const displayAgent = isMentionResponse && mentionAgent ? mentionAgent : activeAgent;
+      // Check if this message was forked (has a branch that references it as parent)
+      const isForkPoint = msg.parent_message_id === null && branchConversations.some(
+        (bc: any) => bc.branch_label?.includes(`msg ${idx + 1}`)
+      );
 
       return (
-        <div key={msg.id} className={cn("flex gap-3 animate-fade-in group", msg.role === "user" && "flex-row-reverse")}>
+        <div key={msg.id}>
+          {isForkPoint && (
+            <div className="flex items-center gap-3 my-3">
+              <div className="flex-1 h-px bg-accent/30" />
+              <span className="text-[10px] text-accent font-mono flex items-center gap-1.5">
+                <GitBranch className="h-3 w-3" />
+                BRANCHED AT MSG {idx + 1}
+              </span>
+              <div className="flex-1 h-px bg-accent/30" />
+            </div>
+          )}
+          <div className={cn("flex gap-3 animate-fade-in group", msg.role === "user" && "flex-row-reverse")}>
           {msg.role !== "user" && (
             <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 mt-1 border-2 border-border"
               style={{ backgroundColor: displayAgent.avatar_color + "20", color: displayAgent.avatar_color }}>
