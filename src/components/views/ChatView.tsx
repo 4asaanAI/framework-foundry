@@ -710,7 +710,6 @@ export function ChatView({ selectedAgentId }: ChatViewProps) {
       );
     });
   };
-  };
 
   const renderPickerList = (items: any[], type: "skill" | "command" | "mention") => (
     <div className="max-w-[900px] mx-auto px-6">
