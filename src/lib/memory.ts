@@ -108,11 +108,43 @@ export function extractMemoriesFromMessage(
     .filter((m, i, arr) => arr.findIndex(a => a.content === m.content) === i);
 }
 
+export type ExtractedMemory = MemoryExtraction;
+
+export async function saveExtractedMemories(
+  agentId: string,
+  memories: MemoryExtraction[]
+): Promise<void> {
+  const { supabase } = await import("@/integrations/supabase/client");
+  for (const mem of memories) {
+    const validCategories = ["client_info", "decision", "market_data", "process", "preference", "company", "conversation_handoff"] as const;
+    const category = validCategories.includes(mem.category as any) ? mem.category : "preference";
+    await supabase.from("agent_memories").insert({
+      agent_id: agentId,
+      content: mem.content,
+      category: category as any,
+      confidence: Math.min(1, mem.confidence / 100),
+      memory_type: "personal",
+    });
+  }
+}
+
 export function extractMemoriesFromConversation(
-  conversationId: string,
-  messages: { content: string; role: string }[],
-  _agentId: string
+  messagesOrConversationId: string | { content: string; role: string }[],
+  messagesOrAgentId?: { content: string; role: string }[] | string,
+  _agentId?: string
 ): MemoryExtraction[] {
+  // Support both signatures:
+  // extractMemoriesFromConversation(messages[]) — SageView calls this way
+  // extractMemoriesFromConversation(conversationId, messages[], agentId)
+  let messages: { content: string; role: string }[];
+  let conversationId = "";
+
+  if (Array.isArray(messagesOrConversationId)) {
+    messages = messagesOrConversationId;
+  } else {
+    conversationId = messagesOrConversationId;
+    messages = (messagesOrAgentId as { content: string; role: string }[]) || [];
+  }
   const allExtractions: MemoryExtraction[] = [];
   for (const msg of messages) {
     const role = msg.role === "user" ? "user" : "agent";

@@ -145,7 +145,7 @@ export function SplitScreenView({
                     : "bg-muted text-foreground"
                 )}
               >
-                <ReactMarkdown className="prose prose-sm dark:prose-invert max-w-none">
+                <ReactMarkdown>
                   {msg.content}
                 </ReactMarkdown>
               </div>

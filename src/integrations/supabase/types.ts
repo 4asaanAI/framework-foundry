@@ -474,6 +474,33 @@ export type Database = {
         }
         Relationships: []
       }
+      db_health_log: {
+        Row: {
+          action_taken: string
+          db_capacity_mb: number
+          db_size_mb: number
+          id: string
+          occupancy_pct: number
+          recorded_at: string
+        }
+        Insert: {
+          action_taken?: string
+          db_capacity_mb?: number
+          db_size_mb?: number
+          id?: string
+          occupancy_pct?: number
+          recorded_at?: string
+        }
+        Update: {
+          action_taken?: string
+          db_capacity_mb?: number
+          db_size_mb?: number
+          id?: string
+          occupancy_pct?: number
+          recorded_at?: string
+        }
+        Relationships: []
+      }
       direct_messages: {
         Row: {
           content: string
@@ -498,6 +525,33 @@ export type Database = {
           is_read?: boolean
           receiver_id?: string
           sender_id?: string
+        }
+        Relationships: []
+      }
+      failed_writes: {
+        Row: {
+          collection: string
+          created_at: string
+          data: Json
+          error: string
+          id: string
+          retry_count: number
+        }
+        Insert: {
+          collection: string
+          created_at?: string
+          data?: Json
+          error?: string
+          id?: string
+          retry_count?: number
+        }
+        Update: {
+          collection?: string
+          created_at?: string
+          data?: Json
+          error?: string
+          id?: string
+          retry_count?: number
         }
         Relationships: []
       }
@@ -533,6 +587,67 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      message_annotations: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          message_id: string
+          profile_id: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          message_id: string
+          profile_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          message_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_annotations_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_archives: {
+        Row: {
+          compressed_at: string
+          content: string
+          id: string
+          message_id: string
+        }
+        Insert: {
+          compressed_at?: string
+          content?: string
+          id?: string
+          message_id: string
+        }
+        Update: {
+          compressed_at?: string
+          content?: string
+          id?: string
+          message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_archives_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {

@@ -5,6 +5,12 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
+// Helper to get current user profile_id
+async function getCurrentProfileId(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id || "";
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type ApprovalTier = 1 | 2 | 3;
@@ -119,16 +125,18 @@ export async function requestApproval(
 
   // Tier 1: Auto-approve immediately
   if (tier === 1) {
+    const profileId = await getCurrentProfileId();
     const { data, error } = await supabase
       .from("approvals")
-      .insert({
+      .insert([{
         requesting_agent_id: request.agentId,
+        profile_id: profileId,
         action_type: request.actionType,
         action_description: request.actionDescription,
-        action_payload: request.actionPayload,
-        status: "approved",
+        action_payload: request.actionPayload as any,
+        status: "approved" as const,
         conversation_id: request.conversationId || null,
-      })
+      }])
       .select("id")
       .single();
 
@@ -146,16 +154,18 @@ export async function requestApproval(
   }
 
   // Tier 2 & 3: Insert as pending, wait for human action
+  const profileId2 = await getCurrentProfileId();
   const { data, error } = await supabase
     .from("approvals")
-    .insert({
+    .insert([{
       requesting_agent_id: request.agentId,
+      profile_id: profileId2,
       action_type: request.actionType,
       action_description: request.actionDescription,
-      action_payload: request.actionPayload,
-      status: "pending",
+      action_payload: request.actionPayload as any,
+      status: "pending" as const,
       conversation_id: request.conversationId || null,
-    })
+    }])
     .select("id")
     .single();
 
@@ -230,14 +240,16 @@ async function triggerEscalation(approvalId: string): Promise<void> {
       : "Unknown";
 
   // Insert a notification for the admin/user
-  await supabase.from("notifications").insert({
+  const notifProfileId = await getCurrentProfileId();
+  await supabase.from("notifications").insert([{
+    profile_id: notifProfileId,
     title: "⏰ Approval Timed Out",
     body: `${agentName}'s request "${approval.action_description}" timed out after 30 minutes. Please review.`,
-    category: "approval",
+    category: "approval" as const,
     is_read: false,
     source_agent_id: approval.requesting_agent_id,
     action_url: `/approvals`,
-  });
+  }]);
 
   // n8n webhook stub — will be replaced with real webhook in Task 4 integration
   console.log(
