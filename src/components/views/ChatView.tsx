@@ -519,7 +519,6 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
           agentId: activeAgent.id,
           conversationId,
           messageContent: userMsg,
-          userId: user.id,
         }).catch(() => {});
       }
 

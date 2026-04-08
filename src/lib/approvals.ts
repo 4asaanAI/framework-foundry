@@ -5,6 +5,12 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
+// Helper to get current user profile_id
+async function getCurrentProfileId(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id || "";
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type ApprovalTier = 1 | 2 | 3;
@@ -119,10 +125,12 @@ export async function requestApproval(
 
   // Tier 1: Auto-approve immediately
   if (tier === 1) {
+    const profileId = await getCurrentProfileId();
     const { data, error } = await supabase
       .from("approvals")
       .insert({
         requesting_agent_id: request.agentId,
+        profile_id: profileId,
         action_type: request.actionType,
         action_description: request.actionDescription,
         action_payload: request.actionPayload,

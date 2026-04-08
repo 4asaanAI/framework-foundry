@@ -52,7 +52,7 @@ export function SageView() {
   });
 
   const { data: existingMemories } = useAgentMemories(selectedAgentId || undefined);
-  const { data: conversations } = useConversations(selectedAgentId || undefined);
+  const { data: conversations } = useConversations();
 
   // Pick first conversation for the selected agent to load messages
   const firstConvoId = conversations?.[0]?.id;
@@ -287,7 +287,7 @@ export function SageView() {
                         {mem.confidence}% confidence
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {mem.memoryType}
+                        {mem.type}
                       </span>
                     </div>
                   </div>
