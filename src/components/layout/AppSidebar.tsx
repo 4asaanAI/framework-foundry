@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useAgents } from "@/hooks/use-agents";
 import { useConversations } from "@/hooks/use-conversations";
@@ -32,7 +32,7 @@ import {
   Blocks,
   Kanban,
   Mail,
-  Brain,
+  GitBranch,
 } from "lucide-react";
 import { EditProfileDialog } from "@/components/dialogs/EditProfileDialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -52,7 +52,6 @@ const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "approvals", label: "Approvals", icon: Shield },
-  { id: "sage", label: "Sage Memory", icon: Brain },
   { id: "messages", label: "Messages", icon: Mail },
   { id: "customize", label: "Customize", icon: Blocks },
   { id: "settings", label: "Settings", icon: Settings },
@@ -102,6 +101,7 @@ function ChatHistoryItem({ conv, agents, onSelect }: { conv: any; agents: any[];
   return (
     <div className="group flex items-center gap-1.5 rounded-lg hover:bg-card transition-colors px-2 py-1.5">
       {conv.is_starred && <Star className="h-2.5 w-2.5 text-warning shrink-0 fill-warning" />}
+      {conv.branch_parent_id && <GitBranch className="h-2.5 w-2.5 text-accent shrink-0" />}
       {renaming ? (
         <div className="flex items-center gap-1 flex-1 min-w-0">
           <input
@@ -115,16 +115,13 @@ function ChatHistoryItem({ conv, agents, onSelect }: { conv: any; agents: any[];
           <button onClick={() => setRenaming(false)} className="p-0.5 text-muted-foreground"><X className="h-3 w-3" /></button>
         </div>
       ) : (
-        <button onClick={onSelect} className="flex items-center gap-1.5 flex-1 min-w-0 text-left">
+        <button onClick={onSelect} className="flex flex-col flex-1 min-w-0 text-left">
+          <span className="text-[11px] text-muted-foreground truncate group-hover:text-foreground transition-colors">
+            {conv.branch_parent_id ? `↳ ${conv.title}` : conv.title}
+          </span>
           {agent && (
-            <div
-              className="w-4 h-4 rounded flex items-center justify-center text-[8px] font-bold shrink-0"
-              style={{ backgroundColor: agent.avatar_color + "20", color: agent.avatar_color }}
-            >
-              {agent.avatar_initials}
-            </div>
+            <span className="text-[9px] text-muted-foreground/60 text-right w-full truncate">{agent.name}</span>
           )}
-          <span className="text-[11px] text-muted-foreground truncate group-hover:text-foreground transition-colors">{conv.title}</span>
         </button>
       )}
       {!renaming && (
@@ -234,6 +231,8 @@ function ProfileFooter() {
 
 export function AppSidebar({ activeView, onViewChange, onAgentClick }: SidebarProps) {
   const { data: dbAgents } = useAgents();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
   const [expandedTeams, setExpandedTeams] = useState<Record<string, boolean>>({
     founders_office: true,
@@ -246,11 +245,25 @@ export function AppSidebar({ activeView, onViewChange, onAgentClick }: SidebarPr
     setExpandedTeams((prev) => ({ ...prev, [team]: !prev[team] }));
   };
 
+  const handleNewConversation = useCallback(async () => {
+    if (!user) return;
+    const defaultAgent = agents[0];
+    const { data: newConv, error } = await supabase.from("conversations").insert({
+      agent_id: defaultAgent.id, profile_id: user.id, title: "New Conversation",
+    }).select("id").single();
+    if (!error && newConv) {
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      if (onAgentClick) onAgentClick(defaultAgent.id);
+      onViewChange("chat");
+      toast.success("New conversation started");
+    }
+  }, [user, agents, queryClient, onAgentClick, onViewChange]);
+
   return (
     <aside className="flex flex-col w-[240px] h-full bg-background border-r border-border shrink-0">
       <div className="px-3 py-3">
         <button
-          onClick={() => onViewChange("chat")}
+          onClick={handleNewConversation}
           className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-4 w-4" />
