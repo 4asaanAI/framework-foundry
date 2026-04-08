@@ -93,6 +93,31 @@ export async function validateWebhookUrls(): Promise<boolean> {
   return Object.values(WEBHOOK_URLS).every(url => !!url);
 }
 
+export async function onMessageSent(_data: {
+  agentId: string; conversationId: string; messageContent: string;
+}): Promise<void> {
+  // Fire-and-forget webhook for message events — stub for n8n integration
+  console.log("[Webhooks] onMessageSent — stub");
+}
+
+export async function onAgentDelegation(_data: {
+  fromAgentId: string; toAgentId: string; conversationId: string;
+  delegatedConversationId: string; task: string; reason: string;
+}): Promise<void> {
+  // Fire-and-forget webhook for delegation events — stub for n8n integration
+  const url = WEBHOOK_URLS.AGENT_DELEGATION;
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(_data),
+    });
+  } catch (e) {
+    console.error("[Webhooks] onAgentDelegation failed:", e);
+  }
+}
+
 export function getWebhookStatus() {
   return {
     sageLive: !!WEBHOOK_URLS.SAGE_EXTRACTION,

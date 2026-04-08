@@ -317,7 +317,7 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
         // Client-side memory extraction (fire-and-forget)
         (async () => {
           try {
-            const extracted = extractMemoriesFromMessage(fullContent);
+            const extracted = extractMemoriesFromMessage(fullContent, "agent", conversationId);
             if (extracted.length > 0) {
               await saveExtractedMemories(activeAgent.id, extracted);
               console.log(`[Sage] extracted ${extracted.length} memories from agent response`);
