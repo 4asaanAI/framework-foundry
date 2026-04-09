@@ -48,6 +48,10 @@ export function SageView() {
   const [extractedMemories, setExtractedMemories] = useState<(ExtractedMemory & { selected: boolean })[]>([]);
   const [extracting, setExtracting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshTs, setLastRefreshTs] = useState<string | null>(() =>
+    localStorage.getItem("sage_last_refresh_ts")
+  );
   const [autoExtraction, setAutoExtraction] = useState(() => {
     return localStorage.getItem(AUTO_EXTRACTION_KEY) === "true";
   });
