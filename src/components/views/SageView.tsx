@@ -166,6 +166,52 @@ export function SageView() {
     toast.success(next ? "Auto-extraction enabled (every 12h)" : "Auto-extraction disabled");
   };
 
+  // ── Memory Refresh (all agents) ─────────────────────────────
+  const handleRefreshMemory = useCallback(async () => {
+    setRefreshing(true);
+    let totalExtracted = 0;
+    let totalArchived = 0;
+    try {
+      for (const agent of agents) {
+        if (!agent.id) continue;
+        const { data: convos } = await (await import("@/integrations/supabase/client")).supabase
+          .from("conversations")
+          .select("id")
+          .eq("agent_id", agent.id)
+          .limit(5)
+          .order("updated_at", { ascending: false });
+
+        if (!convos || convos.length === 0) continue;
+
+        for (const convo of convos) {
+          const { data: msgs } = await (await import("@/integrations/supabase/client")).supabase
+            .from("messages")
+            .select("*")
+            .eq("conversation_id", convo.id)
+            .order("created_at", { ascending: true })
+            .limit(100);
+
+          if (!msgs || msgs.length === 0) continue;
+          const memories = extractMemoriesFromConversation(msgs);
+          if (memories.length > 0) {
+            const saved = await saveExtractedMemories(agent.id, memories);
+            totalExtracted += saved;
+          }
+        }
+      }
+      const now = new Date().toISOString();
+      localStorage.setItem("sage_last_refresh_ts", now);
+      setLastRefreshTs(now);
+      toast.success(`Memory refreshed: ${totalExtracted} extracted, ${totalArchived} archived`);
+      queryClient.invalidateQueries({ queryKey: ["agent_memories"] });
+    } catch (err) {
+      console.error("[Sage] Refresh error:", err);
+      toast.error("Memory refresh failed");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [agents, queryClient]);
+
   const toggleMemorySelection = (index: number) => {
     setExtractedMemories((prev) =>
       prev.map((m, i) => (i === index ? { ...m, selected: !m.selected } : m))
