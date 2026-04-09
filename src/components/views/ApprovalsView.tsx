@@ -244,6 +244,12 @@ export function ApprovalsView() {
                   {/* Badges Row */}
                   <div className="flex flex-wrap items-center gap-2">
                     <TierBadge tier={item.tier} />
+                    {item.action_type === "escalation" && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
+                        <AlertTriangle className="w-3 h-3" />
+                        ESCALATION
+                      </span>
+                    )}
                     {item.status === "pending" && !item.timedOut && (
                       <CountdownBadge createdAt={item.created_at} />
                     )}
