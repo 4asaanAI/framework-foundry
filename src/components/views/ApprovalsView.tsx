@@ -25,9 +25,11 @@ import {
   ChevronDown,
   ChevronUp,
   Filter,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { ClarificationDialog } from "@/components/dialogs/ClarificationDialog";
 
 // ─── Filter Types ────────────────────────────────────────────────────────────
 
