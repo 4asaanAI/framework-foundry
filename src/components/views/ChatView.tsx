@@ -1058,7 +1058,18 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
    onConversationCreated={(agentId) => {
      setShowNewConversation(false);
    }}
- />
- </div>
- );
+  />
+
+  {/* Escalation Dialog */}
+  <EscalationDialog
+    open={showEscalation}
+    onOpenChange={setShowEscalation}
+    agentId={activeAgent.id}
+    agentName={activeAgent.name}
+    conversationId={activeConversation?.id}
+    linkedTaskId={null}
+    conversationContext={(messages ?? []).slice(-20).map((m: any) => ({ role: m.role, content: m.content }))}
+  />
+  </div>
+  );
 }
