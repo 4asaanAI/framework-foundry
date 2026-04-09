@@ -744,12 +744,16 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  )}
  <button onClick={() => handlePin(msg.id, msg.is_pinned)}
  className={cn("p-0.5 rounded hover:bg-warning/10 transition-colors", msg.is_pinned ? "text-warning" : "text-muted-foreground")}><Pin className="h-3 w-3" /></button>
- <button onClick={() => handleFork(msg.id)}
- className="p-0.5 rounded hover:bg-accent/10 transition-colors text-muted-foreground" title="Branch from here"><GitBranch className="h-3 w-3" /></button>
- </div>
- </div>
- </div>
- </div>
+  <button onClick={() => handleFork(msg.id)}
+  className="p-0.5 rounded hover:bg-accent/10 transition-colors text-muted-foreground" title="Branch from here"><GitBranch className="h-3 w-3" /></button>
+  {msg.role !== "user" && (
+  <button onClick={() => setShowEscalation(true)}
+  className="p-0.5 rounded hover:bg-yellow-500/10 transition-colors text-muted-foreground" title="Escalate to human review"><AlertTriangle className="h-3 w-3" /></button>
+  )}
+  </div>
+  </div>
+  </div>
+  </div>
  );
  });
  };
