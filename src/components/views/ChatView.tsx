@@ -6,7 +6,7 @@ import { usePlugins } from "@/hooks/use-plugins";
 import { useConnectors } from "@/hooks/use-connectors";
 import { useProjects } from "@/hooks/use-projects";
 import { MOCK_AGENTS } from "@/constants/agents";
-import { Send, Plus, FolderKanban, ChevronDown, X, FileText, Image, File, PanelRightClose, ThumbsUp, ThumbsDown, Pin, Download, Star, StarOff, GitBranch, Loader2 } from "lucide-react";
+import { Send, Plus, FolderKanban, ChevronDown, X, FileText, Image, File, PanelRightClose, ThumbsUp, ThumbsDown, Pin, Download, Star, StarOff, GitBranch, Loader2, AlertTriangle, FileArchive, FileType } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +22,8 @@ import { detectDelegation, setAgentNameMap } from "@/lib/delegation";
 import { onMessageSent } from "@/lib/webhooks";
 import { useApprovalWorkflow } from "@/hooks/use-approval-workflow";
 import { NewConversationDialog } from "@/components/dialogs/NewConversationDialog";
+import { EscalationDialog } from "@/components/dialogs/EscalationDialog";
+import { useProjectAgents } from "@/hooks/use-project-agents";
 
 interface ChatViewProps {
  selectedAgentId?: string | null;
@@ -59,7 +61,9 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  const [newProjectOpen, setNewProjectOpen] = useState(false);
  const [inputHistoryIndex, setInputHistoryIndex] = useState(-1);
  const [pickerIndex, setPickerIndex] = useState(0);
- const [showNewConversation, setShowNewConversation] = useState(false);
+  const [showNewConversation, setShowNewConversation] = useState(false);
+  const [showEscalation, setShowEscalation] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
  const fileInputRef = useRef<HTMLInputElement>(null);
  const textareaRef = useRef<HTMLTextAreaElement>(null);
  const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -69,7 +73,8 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  const { data: dbAgents } = useAgents();
  const { user, profile } = useAuth();
  const queryClient = useQueryClient();
- const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
+  const { data: projectAgents } = useProjectAgents(selectedProject?.id);
+  const agents = projectAgents && projectAgents.length > 0 ? projectAgents : (dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS);
  const { submitForApproval } = useApprovalWorkflow();
  const { data: skills } = useSkills();
  const { data: plugins } = usePlugins();
@@ -627,11 +632,22 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  };
 
  const displayMessages = messages && messages.length > 0 ? messages : [];
- const getFileIcon = (type: string) => {
- if (type.startsWith("image/")) return <Image className="h-4 w-4" />;
- if (type.includes("pdf")) return <FileText className="h-4 w-4" />;
- return <File className="h-4 w-4" />;
- };
+  const getFileIcon = (type: string) => {
+    if (type.startsWith("image/")) return <Image className="h-4 w-4" />;
+    if (type.includes("pdf")) return <FileType className="h-4 w-4" />;
+    if (type.includes("zip") || type.includes("archive") || type.includes("compressed")) return <FileArchive className="h-4 w-4" />;
+    if (type.includes("text") || type.includes("markdown")) return <FileText className="h-4 w-4" />;
+    return <File className="h-4 w-4" />;
+  };
+
+  const getFileTypeBadge = (type: string) => {
+    if (type.startsWith("image/")) return "IMG";
+    if (type.includes("pdf")) return "PDF";
+    if (type.includes("zip") || type.includes("archive")) return "ZIP";
+    if (type.includes("markdown")) return "MD";
+    if (type.includes("text")) return "TXT";
+    return "FILE";
+  };
 
  // Search terms for pickers
  const skillSearchTerm = skillPickerOpen
@@ -728,12 +744,16 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  )}
  <button onClick={() => handlePin(msg.id, msg.is_pinned)}
  className={cn("p-0.5 rounded hover:bg-warning/10 transition-colors", msg.is_pinned ? "text-warning" : "text-muted-foreground")}><Pin className="h-3 w-3" /></button>
- <button onClick={() => handleFork(msg.id)}
- className="p-0.5 rounded hover:bg-accent/10 transition-colors text-muted-foreground" title="Branch from here"><GitBranch className="h-3 w-3" /></button>
- </div>
- </div>
- </div>
- </div>
+  <button onClick={() => handleFork(msg.id)}
+  className="p-0.5 rounded hover:bg-accent/10 transition-colors text-muted-foreground" title="Branch from here"><GitBranch className="h-3 w-3" /></button>
+  {msg.role !== "user" && (
+  <button onClick={() => setShowEscalation(true)}
+  className="p-0.5 rounded hover:bg-yellow-500/10 transition-colors text-muted-foreground" title="Escalate to human review"><AlertTriangle className="h-3 w-3" /></button>
+  )}
+  </div>
+  </div>
+  </div>
+  </div>
  );
  });
  };
@@ -963,18 +983,27 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  )}
  </PopoverContent>
  </Popover>
- <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => handleFileUpload(e.target.files)} />
+  <input ref={fileInputRef} type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.zip,.md,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv" className="hidden" onChange={(e) => handleFileUpload(e.target.files)} />
+
+  {/* Upload progress */}
+  {uploading && (
+    <div className="flex items-center gap-2 shrink-0">
+      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+      <span className="text-xs text-muted-foreground">Uploading…</span>
+    </div>
+  )}
 
  {/* Attachments preview */}
  {attachedFiles.length > 0 && (
  <div className="flex items-center gap-1.5 overflow-x-auto">
- {attachedFiles.map((f, i) => (
- <div key={i} className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs shrink-0">
- {getFileIcon(f.type)}
- <span className="truncate max-w-[100px]">{f.name}</span>
- <button onClick={() => removeAttachment(i)} className="text-muted-foreground hover:text-destructive"><X className="h-3 w-3" /></button>
- </div>
- ))}
+  {attachedFiles.map((f, i) => (
+  <div key={i} className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs shrink-0">
+  {getFileIcon(f.type)}
+  <span className="truncate max-w-[100px]">{f.name}</span>
+  <span className="px-1 py-0.5 bg-primary/10 text-primary rounded text-[9px] font-mono">{getFileTypeBadge(f.type)}</span>
+  <button onClick={() => removeAttachment(i)} className="text-muted-foreground hover:text-destructive"><X className="h-3 w-3" /></button>
+  </div>
+  ))}
  </div>
  )}
 
@@ -1029,7 +1058,18 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
    onConversationCreated={(agentId) => {
      setShowNewConversation(false);
    }}
- />
- </div>
- );
+  />
+
+  {/* Escalation Dialog */}
+  <EscalationDialog
+    open={showEscalation}
+    onOpenChange={setShowEscalation}
+    agentId={activeAgent.id}
+    agentName={activeAgent.name}
+    conversationId={activeConversation?.id}
+    linkedTaskId={null}
+    conversationContext={(messages ?? []).slice(-20).map((m: any) => ({ role: m.role, content: m.content }))}
+  />
+  </div>
+  );
 }

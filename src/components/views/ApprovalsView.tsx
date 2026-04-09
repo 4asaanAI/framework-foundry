@@ -25,9 +25,11 @@ import {
   ChevronDown,
   ChevronUp,
   Filter,
+  MessageCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { ClarificationDialog } from "@/components/dialogs/ClarificationDialog";
 
 // ─── Filter Types ────────────────────────────────────────────────────────────
 
@@ -110,6 +112,7 @@ export function ApprovalsView() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [clarifyApprovalId, setClarifyApprovalId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -241,6 +244,12 @@ export function ApprovalsView() {
                   {/* Badges Row */}
                   <div className="flex flex-wrap items-center gap-2">
                     <TierBadge tier={item.tier} />
+                    {item.action_type === "escalation" && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
+                        <AlertTriangle className="w-3 h-3" />
+                        ESCALATION
+                      </span>
+                    )}
                     {item.status === "pending" && !item.timedOut && (
                       <CountdownBadge createdAt={item.created_at} />
                     )}
@@ -318,19 +327,66 @@ export function ApprovalsView() {
                 </div>
               </div>
 
-              {/* Expanded Audit Trail */}
+              {/* Expanded Audit Trail + Clarification Thread */}
               {isExpanded && (
-                <div className="mt-3 pt-3 border-t border-border/50">
+                <div className="mt-3 pt-3 border-t border-border/50 space-y-3">
                   <p className="text-xs font-medium text-muted-foreground mb-1">
                     Audit Trail
                   </p>
                   <AuditTrail approvalId={item.id} />
+
+                  {/* Clarification Thread */}
+                  {(() => {
+                    const msgs = (item as any).approval_messages;
+                    const threadMsgs = Array.isArray(msgs) ? msgs : [];
+                    return threadMsgs.length > 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">Clarification Thread</p>
+                        {threadMsgs.map((m: any, mi: number) => (
+                          <div key={mi} className={cn(
+                            "px-3 py-2 rounded-lg text-xs",
+                            m.role === "approver"
+                              ? "bg-primary/10 text-foreground ml-4"
+                              : "bg-muted text-foreground mr-4"
+                          )}>
+                            <span className="font-semibold text-[10px] uppercase text-muted-foreground">
+                              {m.role === "approver" ? "You" : "Agent"}
+                            </span>
+                            <p className="mt-0.5">{m.content}</p>
+                            <span className="text-[9px] text-muted-foreground">
+                              {new Date(m.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
+
+                  {/* Ask Clarification button */}
+                  {item.status === "pending" && (
+                    <button
+                      onClick={() => setClarifyApprovalId(item.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground transition-colors"
+                    >
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      Ask Clarification
+                    </button>
+                  )}
                 </div>
               )}
             </div>
           );
         })}
       </div>
+
+      {/* Clarification Dialog */}
+      {clarifyApprovalId && (
+        <ClarificationDialog
+          open={!!clarifyApprovalId}
+          onOpenChange={(open) => { if (!open) setClarifyApprovalId(null); }}
+          approvalId={clarifyApprovalId}
+        />
+      )}
     </div>
   );
 }

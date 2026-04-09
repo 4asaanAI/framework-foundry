@@ -21,6 +21,7 @@ import {
   Loader2,
   ToggleLeft,
   ToggleRight,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,10 @@ export function SageView() {
   const [extractedMemories, setExtractedMemories] = useState<(ExtractedMemory & { selected: boolean })[]>([]);
   const [extracting, setExtracting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshTs, setLastRefreshTs] = useState<string | null>(() =>
+    localStorage.getItem("sage_last_refresh_ts")
+  );
   const [autoExtraction, setAutoExtraction] = useState(() => {
     return localStorage.getItem(AUTO_EXTRACTION_KEY) === "true";
   });
@@ -161,6 +166,52 @@ export function SageView() {
     toast.success(next ? "Auto-extraction enabled (every 12h)" : "Auto-extraction disabled");
   };
 
+  // ── Memory Refresh (all agents) ─────────────────────────────
+  const handleRefreshMemory = useCallback(async () => {
+    setRefreshing(true);
+    let totalExtracted = 0;
+    let totalArchived = 0;
+    try {
+      for (const agent of agents) {
+        if (!agent.id) continue;
+        const { data: convos } = await (await import("@/integrations/supabase/client")).supabase
+          .from("conversations")
+          .select("id")
+          .eq("agent_id", agent.id)
+          .limit(5)
+          .order("updated_at", { ascending: false });
+
+        if (!convos || convos.length === 0) continue;
+
+        for (const convo of convos) {
+          const { data: msgs } = await (await import("@/integrations/supabase/client")).supabase
+            .from("messages")
+            .select("*")
+            .eq("conversation_id", convo.id)
+            .order("created_at", { ascending: true })
+            .limit(100);
+
+          if (!msgs || msgs.length === 0) continue;
+          const memories = extractMemoriesFromConversation(msgs);
+          if (memories.length > 0) {
+            await saveExtractedMemories(agent.id, memories);
+            totalExtracted += memories.length;
+          }
+        }
+      }
+      const now = new Date().toISOString();
+      localStorage.setItem("sage_last_refresh_ts", now);
+      setLastRefreshTs(now);
+      toast.success(`Memory refreshed: ${totalExtracted} extracted, ${totalArchived} archived`);
+      queryClient.invalidateQueries({ queryKey: ["agent_memories"] });
+    } catch (err) {
+      console.error("[Sage] Refresh error:", err);
+      toast.error("Memory refresh failed");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [agents, queryClient]);
+
   const toggleMemorySelection = (index: number) => {
     setExtractedMemories((prev) =>
       prev.map((m, i) => (i === index ? { ...m, selected: !m.selected } : m))
@@ -181,23 +232,38 @@ export function SageView() {
           </div>
         </div>
 
-        {/* Auto-extraction toggle */}
-        <button
-          onClick={toggleAutoExtraction}
-          className={cn(
-            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-            autoExtraction
-              ? "bg-primary/20 text-primary border border-primary/30"
-              : "bg-muted text-muted-foreground border border-border"
+        {/* Auto-extraction toggle + Refresh button */}
+        <div className="flex items-center gap-2">
+          {lastRefreshTs && (
+            <span className="text-[10px] text-muted-foreground">
+              Last refresh: {new Date(lastRefreshTs).toLocaleString()}
+            </span>
           )}
-        >
-          {autoExtraction ? (
-            <ToggleRight className="w-4 h-4" />
-          ) : (
-            <ToggleLeft className="w-4 h-4" />
-          )}
-          Auto-Extract
-        </button>
+          <button
+            onClick={handleRefreshMemory}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 disabled:opacity-50 transition-colors"
+          >
+            {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Refresh Memory
+          </button>
+          <button
+            onClick={toggleAutoExtraction}
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+              autoExtraction
+                ? "bg-primary/20 text-primary border border-primary/30"
+                : "bg-muted text-muted-foreground border border-border"
+            )}
+          >
+            {autoExtraction ? (
+              <ToggleRight className="w-4 h-4" />
+            ) : (
+              <ToggleLeft className="w-4 h-4" />
+            )}
+            Auto-Extract
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto p-6 space-y-6">

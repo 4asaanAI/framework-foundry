@@ -215,6 +215,7 @@ export type Database = {
           action_description: string
           action_payload: Json
           action_type: string
+          approval_messages: Json
           conversation_id: string | null
           created_at: string
           id: string
@@ -227,6 +228,7 @@ export type Database = {
           action_description?: string
           action_payload?: Json
           action_type: string
+          approval_messages?: Json
           conversation_id?: string | null
           created_at?: string
           id?: string
@@ -239,6 +241,7 @@ export type Database = {
           action_description?: string
           action_payload?: Json
           action_type?: string
+          approval_messages?: Json
           conversation_id?: string | null
           created_at?: string
           id?: string
@@ -527,6 +530,73 @@ export type Database = {
           sender_id?: string
         }
         Relationships: []
+      }
+      escalations: {
+        Row: {
+          approval_id: string | null
+          conversation_context: Json
+          created_at: string
+          feedback: string | null
+          id: string
+          profile_id: string
+          reason: string
+          requesting_agent_id: string
+          resolved_by: string | null
+          status: string
+          task_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          approval_id?: string | null
+          conversation_context?: Json
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          profile_id: string
+          reason?: string
+          requesting_agent_id: string
+          resolved_by?: string | null
+          status?: string
+          task_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approval_id?: string | null
+          conversation_context?: Json
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          profile_id?: string
+          reason?: string
+          requesting_agent_id?: string
+          resolved_by?: string | null
+          status?: string
+          task_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escalations_approval_id_fkey"
+            columns: ["approval_id"]
+            isOneToOne: false
+            referencedRelation: "approvals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalations_requesting_agent_id_fkey"
+            columns: ["requesting_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalations_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       failed_writes: {
         Row: {
