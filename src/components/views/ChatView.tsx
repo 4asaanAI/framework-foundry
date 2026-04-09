@@ -73,7 +73,8 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  const { data: dbAgents } = useAgents();
  const { user, profile } = useAuth();
  const queryClient = useQueryClient();
- const agents = dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS;
+  const { data: projectAgents } = useProjectAgents(selectedProject?.id);
+  const agents = projectAgents && projectAgents.length > 0 ? projectAgents : (dbAgents && dbAgents.length > 0 ? dbAgents : MOCK_AGENTS);
  const { submitForApproval } = useApprovalWorkflow();
  const { data: skills } = useSkills();
  const { data: plugins } = usePlugins();
@@ -631,11 +632,22 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  };
 
  const displayMessages = messages && messages.length > 0 ? messages : [];
- const getFileIcon = (type: string) => {
- if (type.startsWith("image/")) return <Image className="h-4 w-4" />;
- if (type.includes("pdf")) return <FileText className="h-4 w-4" />;
- return <File className="h-4 w-4" />;
- };
+  const getFileIcon = (type: string) => {
+    if (type.startsWith("image/")) return <Image className="h-4 w-4" />;
+    if (type.includes("pdf")) return <FileType className="h-4 w-4" />;
+    if (type.includes("zip") || type.includes("archive") || type.includes("compressed")) return <FileArchive className="h-4 w-4" />;
+    if (type.includes("text") || type.includes("markdown")) return <FileText className="h-4 w-4" />;
+    return <File className="h-4 w-4" />;
+  };
+
+  const getFileTypeBadge = (type: string) => {
+    if (type.startsWith("image/")) return "IMG";
+    if (type.includes("pdf")) return "PDF";
+    if (type.includes("zip") || type.includes("archive")) return "ZIP";
+    if (type.includes("markdown")) return "MD";
+    if (type.includes("text")) return "TXT";
+    return "FILE";
+  };
 
  // Search terms for pickers
  const skillSearchTerm = skillPickerOpen
