@@ -61,7 +61,9 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  const [newProjectOpen, setNewProjectOpen] = useState(false);
  const [inputHistoryIndex, setInputHistoryIndex] = useState(-1);
  const [pickerIndex, setPickerIndex] = useState(0);
- const [showNewConversation, setShowNewConversation] = useState(false);
+  const [showNewConversation, setShowNewConversation] = useState(false);
+  const [showEscalation, setShowEscalation] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
  const fileInputRef = useRef<HTMLInputElement>(null);
  const textareaRef = useRef<HTMLTextAreaElement>(null);
  const messagesEndRef = useRef<HTMLDivElement>(null);
