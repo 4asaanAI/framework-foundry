@@ -112,6 +112,7 @@ export function ApprovalsView() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [clarifyApprovalId, setClarifyApprovalId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
