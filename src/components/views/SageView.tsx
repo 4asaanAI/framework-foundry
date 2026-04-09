@@ -194,8 +194,8 @@ export function SageView() {
           if (!msgs || msgs.length === 0) continue;
           const memories = extractMemoriesFromConversation(msgs);
           if (memories.length > 0) {
-            const saved = await saveExtractedMemories(agent.id, memories);
-            totalExtracted += saved;
+            await saveExtractedMemories(agent.id, memories);
+            totalExtracted += memories.length;
           }
         }
       }
