@@ -232,23 +232,38 @@ export function SageView() {
           </div>
         </div>
 
-        {/* Auto-extraction toggle */}
-        <button
-          onClick={toggleAutoExtraction}
-          className={cn(
-            "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-            autoExtraction
-              ? "bg-primary/20 text-primary border border-primary/30"
-              : "bg-muted text-muted-foreground border border-border"
+        {/* Auto-extraction toggle + Refresh button */}
+        <div className="flex items-center gap-2">
+          {lastRefreshTs && (
+            <span className="text-[10px] text-muted-foreground">
+              Last refresh: {new Date(lastRefreshTs).toLocaleString()}
+            </span>
           )}
-        >
-          {autoExtraction ? (
-            <ToggleRight className="w-4 h-4" />
-          ) : (
-            <ToggleLeft className="w-4 h-4" />
-          )}
-          Auto-Extract
-        </button>
+          <button
+            onClick={handleRefreshMemory}
+            disabled={refreshing}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 disabled:opacity-50 transition-colors"
+          >
+            {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Refresh Memory
+          </button>
+          <button
+            onClick={toggleAutoExtraction}
+            className={cn(
+              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+              autoExtraction
+                ? "bg-primary/20 text-primary border border-primary/30"
+                : "bg-muted text-muted-foreground border border-border"
+            )}
+          >
+            {autoExtraction ? (
+              <ToggleRight className="w-4 h-4" />
+            ) : (
+              <ToggleLeft className="w-4 h-4" />
+            )}
+            Auto-Extract
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
