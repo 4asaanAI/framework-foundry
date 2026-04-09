@@ -983,18 +983,27 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  )}
  </PopoverContent>
  </Popover>
- <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => handleFileUpload(e.target.files)} />
+  <input ref={fileInputRef} type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.gif,.zip,.md,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv" className="hidden" onChange={(e) => handleFileUpload(e.target.files)} />
+
+  {/* Upload progress */}
+  {uploading && (
+    <div className="flex items-center gap-2 shrink-0">
+      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+      <span className="text-xs text-muted-foreground">Uploading…</span>
+    </div>
+  )}
 
  {/* Attachments preview */}
  {attachedFiles.length > 0 && (
  <div className="flex items-center gap-1.5 overflow-x-auto">
- {attachedFiles.map((f, i) => (
- <div key={i} className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs shrink-0">
- {getFileIcon(f.type)}
- <span className="truncate max-w-[100px]">{f.name}</span>
- <button onClick={() => removeAttachment(i)} className="text-muted-foreground hover:text-destructive"><X className="h-3 w-3" /></button>
- </div>
- ))}
+  {attachedFiles.map((f, i) => (
+  <div key={i} className="flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs shrink-0">
+  {getFileIcon(f.type)}
+  <span className="truncate max-w-[100px]">{f.name}</span>
+  <span className="px-1 py-0.5 bg-primary/10 text-primary rounded text-[9px] font-mono">{getFileTypeBadge(f.type)}</span>
+  <button onClick={() => removeAttachment(i)} className="text-muted-foreground hover:text-destructive"><X className="h-3 w-3" /></button>
+  </div>
+  ))}
  </div>
  )}
 
