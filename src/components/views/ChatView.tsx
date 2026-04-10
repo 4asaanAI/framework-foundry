@@ -868,10 +868,18 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  <button onClick={() => executeBuiltInCommand("export")} className="p-1 rounded hover:bg-card transition-colors" title="Export conversation">
  <Download className="h-4 w-4 text-muted-foreground" />
  </button>
- <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full", streaming ? "bg-warning/20 text-warning" : "bg-muted text-muted-foreground")}>
- {streaming ? "thinking" : activeAgent.status ?? "idle"}
- </span>
- </div>
+  <span className={cn("text-[9px] px-1.5 py-0.5 rounded-full", streaming ? "bg-warning/20 text-warning" : "bg-muted text-muted-foreground")}>
+  {streaming ? "thinking" : activeAgent.status ?? "idle"}
+  </span>
+  {/* Loan tokens to this agent */}
+  <button
+    onClick={() => setShowTokenTransfer(true)}
+    className="p-1 rounded hover:bg-card transition-colors"
+    title="Transfer tokens to this agent"
+  >
+    <ArrowDownToLine className="h-4 w-4 text-muted-foreground" />
+  </button>
+  </div>
  </div>
  {/* Budget exhaustion banner */}
  {activeAgent.budget_used >= (activeAgent.budget_tokens + (activeAgent.budget_loaned ?? 0)) && (
@@ -1062,16 +1070,25 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
    }}
   />
 
-  {/* Escalation Dialog */}
-  <EscalationDialog
-    open={showEscalation}
-    onOpenChange={setShowEscalation}
-    agentId={activeAgent.id}
-    agentName={activeAgent.name}
-    conversationId={activeConversation?.id}
-    linkedTaskId={null}
-    conversationContext={(messages ?? []).slice(-20).map((m: any) => ({ role: m.role, content: m.content }))}
-  />
-  </div>
+   {/* Escalation Dialog */}
+   <EscalationDialog
+     open={showEscalation}
+     onOpenChange={setShowEscalation}
+     agentId={activeAgent.id}
+     agentName={activeAgent.name}
+     conversationId={activeConversation?.id}
+     linkedTaskId={null}
+     conversationContext={(messages ?? []).slice(-20).map((m: any) => ({ role: m.role, content: m.content }))}
+   />
+
+   {/* Token Transfer Dialog — lets other agents loan tokens to this agent */}
+   <TransferTokensDialog
+     open={showTokenTransfer}
+     onOpenChange={setShowTokenTransfer}
+     sourceAgent={null}
+     allAgents={dbAgents ?? []}
+     targetAgent={activeAgent as any}
+   />
+   </div>
   );
 }
