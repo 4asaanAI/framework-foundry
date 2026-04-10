@@ -12,7 +12,7 @@
  * The approval system gates execution for tier 2/3 tools.
  */
 
-import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 

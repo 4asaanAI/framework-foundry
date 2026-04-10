@@ -64,6 +64,7 @@ export type Database = {
           created_at: string
           id: string
           is_compressed: boolean
+          last_refreshed_at: string | null
           memory_type: Database["public"]["Enums"]["memory_type"]
         }
         Insert: {
@@ -74,6 +75,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_compressed?: boolean
+          last_refreshed_at?: string | null
           memory_type?: Database["public"]["Enums"]["memory_type"]
         }
         Update: {
@@ -84,6 +86,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_compressed?: boolean
+          last_refreshed_at?: string | null
           memory_type?: Database["public"]["Enums"]["memory_type"]
         }
         Relationships: [
@@ -209,6 +212,67 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      approval_queue: {
+        Row: {
+          agent_context: Json | null
+          approval_messages: Json | null
+          approver_id: string
+          created_at: string | null
+          escalation_id: string | null
+          id: string
+          notes: string | null
+          status: string | null
+          task_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          agent_context?: Json | null
+          approval_messages?: Json | null
+          approver_id: string
+          created_at?: string | null
+          escalation_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          task_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          agent_context?: Json | null
+          approval_messages?: Json | null
+          approver_id?: string
+          created_at?: string | null
+          escalation_id?: string | null
+          id?: string
+          notes?: string | null
+          status?: string | null
+          task_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_queue_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approval_queue_escalation_id_fkey"
+            columns: ["escalation_id"]
+            isOneToOne: false
+            referencedRelation: "escalations"
+            referencedColumns: ["escalation_id"]
+          },
+          {
+            foreignKeyName: "approval_queue_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       approvals: {
         Row: {
@@ -339,6 +403,54 @@ export type Database = {
         }
         Relationships: []
       }
+      context_memories: {
+        Row: {
+          context_id: string
+          created_at: string | null
+          key: string
+          memory_id: string
+          source: string | null
+          updated_at: string | null
+          user_id: string | null
+          value: string
+        }
+        Insert: {
+          context_id: string
+          created_at?: string | null
+          key: string
+          memory_id?: string
+          source?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          value: string
+        }
+        Update: {
+          context_id?: string
+          created_at?: string | null
+          key?: string
+          memory_id?: string
+          source?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "context_memories_context_id_fkey"
+            columns: ["context_id"]
+            isOneToOne: false
+            referencedRelation: "work_contexts"
+            referencedColumns: ["context_id"]
+          },
+          {
+            foreignKeyName: "context_memories_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversations: {
         Row: {
           agent_id: string
@@ -398,13 +510,6 @@ export type Database = {
             columns: ["branch_parent_id"]
             isOneToOne: false
             referencedRelation: "conversations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conversations_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -477,6 +582,54 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_updates_log: {
+        Row: {
+          agent_id: string | null
+          field_changed: string
+          new_value: string | null
+          old_value: string | null
+          reason: string | null
+          task_id: string
+          timestamp: string | null
+          update_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          field_changed: string
+          new_value?: string | null
+          old_value?: string | null
+          reason?: string | null
+          task_id: string
+          timestamp?: string | null
+          update_id?: string
+        }
+        Update: {
+          agent_id?: string | null
+          field_changed?: string
+          new_value?: string | null
+          old_value?: string | null
+          reason?: string | null
+          task_id?: string
+          timestamp?: string | null
+          update_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_updates_log_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_updates_log_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       db_health_log: {
         Row: {
           action_taken: string
@@ -533,60 +686,54 @@ export type Database = {
       }
       escalations: {
         Row: {
-          approval_id: string | null
-          conversation_context: Json
-          created_at: string
+          context: Json | null
+          created_at: string | null
+          escalated_by_agent_id: string | null
+          escalation_id: string
           feedback: string | null
-          id: string
-          profile_id: string
           reason: string
-          requesting_agent_id: string
+          resolved_at: string | null
           resolved_by: string | null
-          status: string
+          status: string | null
           task_id: string | null
-          updated_at: string
         }
         Insert: {
-          approval_id?: string | null
-          conversation_context?: Json
-          created_at?: string
+          context?: Json | null
+          created_at?: string | null
+          escalated_by_agent_id?: string | null
+          escalation_id?: string
           feedback?: string | null
-          id?: string
-          profile_id: string
-          reason?: string
-          requesting_agent_id: string
+          reason: string
+          resolved_at?: string | null
           resolved_by?: string | null
-          status?: string
+          status?: string | null
           task_id?: string | null
-          updated_at?: string
         }
         Update: {
-          approval_id?: string | null
-          conversation_context?: Json
-          created_at?: string
+          context?: Json | null
+          created_at?: string | null
+          escalated_by_agent_id?: string | null
+          escalation_id?: string
           feedback?: string | null
-          id?: string
-          profile_id?: string
           reason?: string
-          requesting_agent_id?: string
+          resolved_at?: string | null
           resolved_by?: string | null
-          status?: string
+          status?: string | null
           task_id?: string | null
-          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "escalations_approval_id_fkey"
-            columns: ["approval_id"]
+            foreignKeyName: "escalations_escalated_by_agent_id_fkey"
+            columns: ["escalated_by_agent_id"]
             isOneToOne: false
-            referencedRelation: "approvals"
+            referencedRelation: "agents"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "escalations_requesting_agent_id_fkey"
-            columns: ["requesting_agent_id"]
+            foreignKeyName: "escalations_resolved_by_fkey"
+            columns: ["resolved_by"]
             isOneToOne: false
-            referencedRelation: "agents"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -624,6 +771,57 @@ export type Database = {
           retry_count?: number
         }
         Relationships: []
+      }
+      file_contents: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string | null
+          extracted_from: string | null
+          file_id: string
+          file_type: string | null
+          original_filename: string
+          project_id: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          chunk_index?: number
+          content: string
+          created_at?: string | null
+          extracted_from?: string | null
+          file_id?: string
+          file_type?: string | null
+          original_filename: string
+          project_id?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string | null
+          extracted_from?: string | null
+          file_id?: string
+          file_type?: string | null
+          original_filename?: string
+          project_id?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "file_contents_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "file_contents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       llm_providers: {
         Row: {
@@ -692,32 +890,36 @@ export type Database = {
       }
       message_archives: {
         Row: {
-          compressed_at: string
-          content: string
-          id: string
-          message_id: string
+          archive_id: string
+          archived_at: string | null
+          content: string | null
+          conversation_id: string | null
+          created_at: string | null
+          original_message_id: string
+          project_id: string | null
+          role: string | null
         }
         Insert: {
-          compressed_at?: string
-          content?: string
-          id?: string
-          message_id: string
+          archive_id?: string
+          archived_at?: string | null
+          content?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          original_message_id: string
+          project_id?: string | null
+          role?: string | null
         }
         Update: {
-          compressed_at?: string
-          content?: string
-          id?: string
-          message_id?: string
+          archive_id?: string
+          archived_at?: string | null
+          content?: string | null
+          conversation_id?: string | null
+          created_at?: string | null
+          original_message_id?: string
+          project_id?: string | null
+          role?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "message_archives_message_id_fkey"
-            columns: ["message_id"]
-            isOneToOne: false
-            referencedRelation: "messages"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       messages: {
         Row: {
@@ -732,6 +934,7 @@ export type Database = {
           mention_agent_id: string | null
           model: string
           parent_message_id: string | null
+          project_id: string | null
           rating: number | null
           response_time_ms: number
           role: Database["public"]["Enums"]["message_role"]
@@ -750,6 +953,7 @@ export type Database = {
           mention_agent_id?: string | null
           model?: string
           parent_message_id?: string | null
+          project_id?: string | null
           rating?: number | null
           response_time_ms?: number
           role: Database["public"]["Enums"]["message_role"]
@@ -768,6 +972,7 @@ export type Database = {
           mention_agent_id?: string | null
           model?: string
           parent_message_id?: string | null
+          project_id?: string | null
           rating?: number | null
           response_time_ms?: number
           role?: Database["public"]["Enums"]["message_role"]
@@ -795,6 +1000,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "messages"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
           },
         ]
       }
@@ -910,24 +1122,34 @@ export type Database = {
       }
       project_agents: {
         Row: {
+          added_at: string | null
+          added_by: string | null
           agent_id: string
-          created_at: string
           id: string
           project_id: string
         }
         Insert: {
+          added_at?: string | null
+          added_by?: string | null
           agent_id: string
-          created_at?: string
           id?: string
           project_id: string
         }
         Update: {
+          added_at?: string | null
+          added_by?: string | null
           agent_id?: string
-          created_at?: string
           id?: string
           project_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "project_agents_added_by_fkey"
+            columns: ["added_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_agents_agent_id_fkey"
             columns: ["agent_id"]
@@ -940,7 +1162,7 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
-            referencedColumns: ["id"]
+            referencedColumns: ["project_id"]
           },
         ]
       }
@@ -1004,48 +1226,150 @@ export type Database = {
           id?: string
           project_id?: string
         }
+        Relationships: []
+      }
+      project_knowledge: {
+        Row: {
+          chunk_count: number | null
+          created_at: string | null
+          extracted_text: string | null
+          file_name: string
+          file_size_bytes: number | null
+          file_type: string | null
+          knowledge_id: string
+          project_id: string
+          storage_path: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          chunk_count?: number | null
+          created_at?: string | null
+          extracted_text?: string | null
+          file_name: string
+          file_size_bytes?: number | null
+          file_type?: string | null
+          knowledge_id?: string
+          project_id: string
+          storage_path?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          chunk_count?: number | null
+          created_at?: string | null
+          extracted_text?: string | null
+          file_name?: string
+          file_size_bytes?: number | null
+          file_type?: string | null
+          knowledge_id?: string
+          project_id?: string
+          storage_path?: string | null
+          uploaded_by?: string | null
+        }
         Relationships: [
           {
-            foreignKeyName: "project_kbs_project_id_fkey"
+            foreignKeyName: "project_knowledge_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_knowledge_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_knowledge_chunks: {
+        Row: {
+          chunk_id: string
+          chunk_index: number
+          content: string
+          created_at: string | null
+          knowledge_id: string
+          project_id: string
+          token_count: number | null
+        }
+        Insert: {
+          chunk_id?: string
+          chunk_index: number
+          content: string
+          created_at?: string | null
+          knowledge_id: string
+          project_id: string
+          token_count?: number | null
+        }
+        Update: {
+          chunk_id?: string
+          chunk_index?: number
+          content?: string
+          created_at?: string | null
+          knowledge_id?: string
+          project_id?: string
+          token_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_knowledge_chunks_knowledge_id_fkey"
+            columns: ["knowledge_id"]
+            isOneToOne: false
+            referencedRelation: "project_knowledge"
+            referencedColumns: ["knowledge_id"]
+          },
+          {
+            foreignKeyName: "project_knowledge_chunks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
           },
         ]
       }
       projects: {
         Row: {
-          created_at: string
+          created_at: string | null
           created_by: string | null
-          description: string
-          id: string
-          instructions: string
-          is_active: boolean
+          description: string | null
+          instructions: string | null
+          is_archived: boolean | null
           name: string
-          updated_at: string
+          project_id: string
+          updated_at: string | null
+          visibility: string | null
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
-          description?: string
-          id?: string
-          instructions?: string
-          is_active?: boolean
+          description?: string | null
+          instructions?: string | null
+          is_archived?: boolean | null
           name: string
-          updated_at?: string
+          project_id?: string
+          updated_at?: string | null
+          visibility?: string | null
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
           created_by?: string | null
-          description?: string
-          id?: string
-          instructions?: string
-          is_active?: boolean
+          description?: string | null
+          instructions?: string | null
+          is_archived?: boolean | null
           name?: string
-          updated_at?: string
+          project_id?: string
+          updated_at?: string | null
+          visibility?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "projects_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       references: {
         Row: {
@@ -1148,42 +1472,51 @@ export type Database = {
       }
       tasks: {
         Row: {
+          agent_escalation_count: number | null
           assigned_agent_id: string
           created_at: string
           created_by_agent_id: string | null
           created_by_profile: string | null
+          crm_board_shared: boolean | null
           description: string
           due_date: string | null
           id: string
           is_recurring: boolean
+          modified_by_agent_id: string | null
           project_id: string | null
           status: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at: string
         }
         Insert: {
+          agent_escalation_count?: number | null
           assigned_agent_id: string
           created_at?: string
           created_by_agent_id?: string | null
           created_by_profile?: string | null
+          crm_board_shared?: boolean | null
           description?: string
           due_date?: string | null
           id?: string
           is_recurring?: boolean
+          modified_by_agent_id?: string | null
           project_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at?: string
         }
         Update: {
+          agent_escalation_count?: number | null
           assigned_agent_id?: string
           created_at?: string
           created_by_agent_id?: string | null
           created_by_profile?: string | null
+          crm_board_shared?: boolean | null
           description?: string
           due_date?: string | null
           id?: string
           is_recurring?: boolean
+          modified_by_agent_id?: string | null
           project_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
@@ -1205,10 +1538,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "tasks_project_id_fkey"
-            columns: ["project_id"]
+            foreignKeyName: "tasks_modified_by_agent_id_fkey"
+            columns: ["modified_by_agent_id"]
             isOneToOne: false
-            referencedRelation: "projects"
+            referencedRelation: "agents"
             referencedColumns: ["id"]
           },
         ]
@@ -1251,6 +1584,57 @@ export type Database = {
           tokens_out?: number
         }
         Relationships: []
+      }
+      work_contexts: {
+        Row: {
+          context_id: string
+          context_type: string
+          created_at: string | null
+          display_name: string
+          folder_path: string | null
+          last_refresh_at: string | null
+          last_used_at: string | null
+          project_id: string | null
+          user_id: string
+        }
+        Insert: {
+          context_id?: string
+          context_type: string
+          created_at?: string | null
+          display_name: string
+          folder_path?: string | null
+          last_refresh_at?: string | null
+          last_used_at?: string | null
+          project_id?: string | null
+          user_id: string
+        }
+        Update: {
+          context_id?: string
+          context_type?: string
+          created_at?: string | null
+          display_name?: string
+          folder_path?: string | null
+          last_refresh_at?: string | null
+          last_used_at?: string | null
+          project_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_contexts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "work_contexts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

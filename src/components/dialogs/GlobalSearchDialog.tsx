@@ -68,7 +68,7 @@ export function GlobalSearchDialog({ open, onOpenChange, onNavigate, onAgentClic
         {projects && projects.length > 0 && (
           <CommandGroup heading="Projects">
             {projects.map(p => (
-              <CommandItem key={p.id} onSelect={() => handleSelect("projects")}>
+              <CommandItem key={(p as any).project_id ?? (p as any).id} onSelect={() => handleSelect("projects")}>
                 <FolderKanban className="mr-2 h-4 w-4" />
                 <span>{p.name}</span>
               </CommandItem>

@@ -4,6 +4,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { Conversation, Message, Agent, AgentMemory, Task, ApprovalItem, Project } from "./db-types";
+import { toProject } from "@/types/layaa";
 
 // ─── CONVERSATIONS ───
 
@@ -278,7 +279,7 @@ export async function getSettings(keys?: string[]): Promise<Record<string, strin
 export async function getProjects(): Promise<Project[]> {
   const { data, error } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
   if (error) throw new Error(`Failed to fetch projects: ${error.message}`);
-  return (data ?? []) as Project[];
+  return (data ?? []).map((r: any) => toProject(r));
 }
 
 // ─── TOKEN USAGE ───

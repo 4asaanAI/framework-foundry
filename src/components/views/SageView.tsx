@@ -350,7 +350,7 @@ export function SageView() {
                         {mem.category.replace(/_/g, " ")}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {mem.confidence}% confidence
+                        {Math.round(mem.confidence * 100)}% confidence
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {mem.type}
@@ -387,7 +387,7 @@ export function SageView() {
                       {mem.category.replace(/_/g, " ")}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {mem.confidence}%
+                      {Math.round(mem.confidence * 100)}%
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {new Date(mem.created_at).toLocaleDateString()}
