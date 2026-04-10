@@ -43,7 +43,7 @@ export function ProjectDetailsPanel({ open, onOpenChange, project, onStartChat }
     const { error } = await supabase
       .from("projects")
       .update({ name: nameValue.trim() })
-      .eq("id", project.id);
+      .eq("project_id", (project as any).project_id ?? project.id);
     if (error) {
       toast.error("Failed to update name");
     } else {
@@ -61,7 +61,7 @@ export function ProjectDetailsPanel({ open, onOpenChange, project, onStartChat }
     const { error } = await supabase
       .from("projects")
       .update({ description: descValue.trim() })
-      .eq("id", project.id);
+      .eq("project_id", (project as any).project_id ?? project.id);
     if (error) {
       toast.error("Failed to update description");
     } else {

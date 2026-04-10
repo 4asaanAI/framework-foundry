@@ -278,7 +278,7 @@ export async function getSettings(keys?: string[]): Promise<Record<string, strin
 export async function getProjects(): Promise<Project[]> {
   const { data, error } = await supabase.from("projects").select("*").order("created_at", { ascending: false });
   if (error) throw new Error(`Failed to fetch projects: ${error.message}`);
-  return (data ?? []) as Project[];
+  return (data ?? []).map((r: any) => toProject(r));
 }
 
 // ─── TOKEN USAGE ───

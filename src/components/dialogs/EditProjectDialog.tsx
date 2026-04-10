@@ -64,7 +64,7 @@ export function EditProjectDialog({ open, onOpenChange, project }: Props) {
     try {
       const { error } = await supabase.from("projects").update({
         name: name.trim(), description: description.trim(), instructions: instructions.trim(),
-      }).eq("id", project.id);
+      }).eq("project_id", project.project_id ?? project.id);
       if (error) throw error;
       toast.success("Project updated");
       qc.invalidateQueries({ queryKey: ["projects"] });

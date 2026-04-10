@@ -99,14 +99,26 @@ export interface AgentMemory {
 }
 
 export interface Project {
-  id: string;
+  project_id: string;
+  /** Alias for project_id — used throughout UI code */
+  get id(): string;
   name: string;
-  description: string;
-  instructions: string;
-  agents: string[];
-  created_by: string;
-  is_active: boolean;
-  created_at: string;
+  description: string | null;
+  instructions: string | null;
+  created_by: string | null;
+  visibility: string | null;
+  is_archived: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+/** Map a raw DB project row to our Project interface (adds `id` alias) */
+export function toProject(row: Record<string, unknown>): Project {
+  const r = row as any;
+  return {
+    ...r,
+    get id() { return r.project_id; },
+  } as Project;
 }
 
 export interface Task {
