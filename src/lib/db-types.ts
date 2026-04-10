@@ -101,12 +101,14 @@ export interface ApprovalItem {
 }
 
 export interface Project {
+  project_id: string;
   id: string;
   name: string;
-  description: string;
-  instructions: string;
-  is_active: boolean;
+  description: string | null;
+  instructions: string | null;
+  visibility: string | null;
+  is_archived: boolean | null;
   created_by: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
 }
