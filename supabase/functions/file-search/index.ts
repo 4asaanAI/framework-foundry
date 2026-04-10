@@ -72,7 +72,7 @@ export async function handleFileSearch(req: Request): Promise<Response> {
 }
 
 async function fallbackSearch(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   query: string,
   fileType: string | null,
   projectId: string | null,

@@ -954,7 +954,7 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  {/* Mention picker (@) */}
  {mentionPickerOpen && filteredAgents.length > 0 && renderPickerList(filteredAgents.slice(0, 10), "mention")}
 
- <div className="flex items-end gap-2">
+ <div className="flex items-end gap-2 rounded-xl border border-border bg-card px-2 py-1">
  {/* Plus menu */}
  <Popover open={plusMenuOpen} onOpenChange={setPlusMenuOpen}>
  <PopoverTrigger asChild>
@@ -1045,7 +1045,7 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  >
  {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
  </button>
- </div>
+  </div> {/* close border div */}
  </div>
  </div>
 
