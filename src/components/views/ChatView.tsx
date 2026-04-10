@@ -6,7 +6,7 @@ import { usePlugins } from "@/hooks/use-plugins";
 import { useConnectors } from "@/hooks/use-connectors";
 import { useProjects } from "@/hooks/use-projects";
 import { MOCK_AGENTS } from "@/constants/agents";
-import { Send, Plus, FolderKanban, ChevronDown, X, FileText, Image, File, PanelRightClose, ThumbsUp, ThumbsDown, Pin, Download, Star, StarOff, GitBranch, Loader2, AlertTriangle, FileArchive, FileType } from "lucide-react";
+import { Send, Plus, FolderKanban, ChevronDown, X, FileText, Image, File, PanelRightClose, ThumbsUp, ThumbsDown, Pin, Download, Star, StarOff, GitBranch, Loader2, AlertTriangle, FileArchive, FileType, ArrowDownToLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,6 +23,7 @@ import { onMessageSent } from "@/lib/webhooks";
 import { useApprovalWorkflow } from "@/hooks/use-approval-workflow";
 import { NewConversationDialog } from "@/components/dialogs/NewConversationDialog";
 import { EscalationDialog } from "@/components/dialogs/EscalationDialog";
+import { TransferTokensDialog } from "@/components/dialogs/TransferTokensDialog";
 import { useProjectAgents } from "@/hooks/use-project-agents";
 
 interface ChatViewProps {
