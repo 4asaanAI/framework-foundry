@@ -4,6 +4,7 @@
  */
 import { supabase } from "@/integrations/supabase/client";
 import type { Conversation, Message, Agent, AgentMemory, Task, ApprovalItem, Project } from "./db-types";
+import { toProject } from "@/types/layaa";
 
 // ─── CONVERSATIONS ───
 
