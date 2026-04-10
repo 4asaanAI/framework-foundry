@@ -8,7 +8,6 @@ import { X, GitBranch, Loader2, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { callLLM } from "@/lib/llm";
 import ReactMarkdown from "react-markdown";
 
 interface SplitScreenViewProps {
@@ -42,6 +41,23 @@ export function SplitScreenView({
 
   const delegatedAgentName = delegatedAgent?.name ?? "Agent";
 
+  // Subscribe to realtime updates on the delegated conversation
+  useEffect(() => {
+    const channel = supabase
+      .channel(`split-screen-${delegatedConversationId}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+        filter: `conversation_id=eq.${delegatedConversationId}`,
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ["messages", delegatedConversationId] });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [delegatedConversationId, queryClient]);
+
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     if (scrollRef.current) {
@@ -63,7 +79,8 @@ export function SplitScreenView({
       });
       queryClient.invalidateQueries({ queryKey: ["messages", delegatedConversationId] });
 
-      // Get response from delegated agent
+      // Get response from delegated agent via edge function
+      const chatUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
       const allMessages = [
         ...(messages ?? []).map((m) => ({
           role: m.role === "agent" ? ("assistant" as const) : ("user" as const),
@@ -72,14 +89,58 @@ export function SplitScreenView({
         { role: "user" as const, content: followUp.trim() },
       ];
 
-      const response = await callLLM(allMessages, model, provider, apiKey);
-
-      await supabase.from("messages").insert({
-        conversation_id: delegatedConversationId,
-        role: "agent" as const,
-        content: response,
-        model,
+      const resp = await fetch(chatUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          messages: allMessages,
+          model: delegatedAgent?.default_model || model,
+          agentName: delegatedAgentName,
+          agentRole: delegatedAgent?.canonical_role || "",
+          systemPrompt: delegatedAgent?.system_prompt || "",
+          agentId: delegatedAgentId,
+          conversationId: delegatedConversationId,
+        }),
       });
+
+      if (!resp.ok) throw new Error("Failed to get response");
+
+      // Parse SSE stream
+      let fullContent = "";
+      if (resp.body) {
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          let nl: number;
+          while ((nl = buf.indexOf("\n")) !== -1) {
+            const line = buf.slice(0, nl).replace(/\r$/, "");
+            buf = buf.slice(nl + 1);
+            if (!line.startsWith("data: ")) continue;
+            const json = line.slice(6).trim();
+            if (json === "[DONE]") break;
+            try {
+              const c = JSON.parse(json).choices?.[0]?.delta?.content;
+              if (c) fullContent += c;
+            } catch { /* partial */ }
+          }
+        }
+      }
+
+      if (fullContent) {
+        await supabase.from("messages").insert({
+          conversation_id: delegatedConversationId,
+          role: "agent" as const,
+          content: fullContent,
+          model: delegatedAgent?.default_model || model,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["messages", delegatedConversationId] });
 
       setFollowUp("");

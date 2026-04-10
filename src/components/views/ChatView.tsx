@@ -286,7 +286,8 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  const content = parsed.choices?.[0]?.delta?.content as string | undefined;
  if (content) {
  fullContent += content;
- setStreamingContent(fullContent);
+ // Hide delegation markers from streaming display
+ setStreamingContent(fullContent.replace(/<!--DELEGATION:[^>]*-->/g, ""));
  }
  } catch {
  textBuffer = line + "\n" + textBuffer;
@@ -307,31 +308,30 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  try {
  const parsed = JSON.parse(jsonStr);
  const content = parsed.choices?.[0]?.delta?.content as string | undefined;
- if (content) { fullContent += content; setStreamingContent(fullContent); }
+ if (content) { fullContent += content; setStreamingContent(fullContent.replace(/<!--DELEGATION:[^>]*-->/g, "")); }
  } catch { /* ignore */ }
  }
  }
 
  // Save agent response to DB
  if (fullContent) {
+ // Strip delegation markers before saving visible content
+ const cleanContent = fullContent.replace(/<!--DELEGATION:[^>]+-->/g, "").trim();
  await supabase.from("messages").insert({
  conversation_id: conversationId,
  role: "agent" as const,
- content: fullContent,
+ content: cleanContent,
  model: activeAgent.default_model || "google/gemini-3-flash-preview",
  });
  queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
 
- // Client-side memory extraction (fire-and-forget)
- (async () => {
- try {
- const extracted = extractMemoriesFromMessage(fullContent, "agent", conversationId);
- if (extracted.length > 0) {
- await saveExtractedMemories(activeAgent.id, extracted);
- console.log(`[Sage] extracted ${extracted.length} memories from agent response`);
+ // Detect delegation and open split screen
+ const delegationMatch = fullContent.match(/<!--DELEGATION:([^:]+):([^:]+):([^>]+)-->/);
+ if (delegationMatch && onDelegation) {
+ const [, delegatedConvId, targetAgentId, targetAgentName] = delegationMatch;
+ queryClient.invalidateQueries({ queryKey: ["conversations"] });
+ onDelegation(delegatedConvId, targetAgentId, targetAgentName);
  }
- } catch { /* ignore */ }
- })();
 
  // Refresh agent data for updated budget_used
  queryClient.invalidateQueries({ queryKey: ["agents"] });
@@ -520,6 +520,16 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  setMessage(""); setAttachedFiles([]);
  localStorage.removeItem(`draft_${activeAgent.id}`);
  queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
+
+ // Client-side memory extraction from user message (fire-and-forget)
+ (async () => {
+ try {
+ const extracted = extractMemoriesFromMessage(userMsg, "user", conversationId);
+ if (extracted.length > 0) {
+ await saveExtractedMemories(activeAgent.id, extracted);
+ }
+ } catch { /* ignore */ }
+ })();
 
  // Fire webhook (fire-and-forget)
  if (user?.id) {

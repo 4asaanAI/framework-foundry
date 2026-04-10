@@ -386,7 +386,35 @@ Respond directly to the task. Be concise and actionable.`;
       const reply = llmData.choices?.[0]?.message?.content || "No response from delegated agent.";
       const tokens = (llmData.usage?.prompt_tokens || 0) + (llmData.usage?.completion_tokens || 0);
 
-      // Save delegated response as mention_response message
+      // Create a separate delegated conversation for split-screen view
+      const { data: delegatedConv } = await ctx.supabase.from("conversations").insert({
+        agent_id: targetAgent.id,
+        profile_id: ctx.profileId,
+        title: `${ctx.agentName} → ${targetAgent.name}: ${String(args.task).slice(0, 50)}`,
+      }).select("id").single();
+
+      const delegatedConversationId = delegatedConv?.id;
+
+      // Save the delegation prompt and response in the delegated conversation
+      if (delegatedConversationId) {
+        await ctx.supabase.from("messages").insert({
+          conversation_id: delegatedConversationId,
+          role: "user",
+          content: `${ctx.agentName} asks: ${args.task}${args.context ? `\n\nContext: ${args.context}` : ""}`,
+          model: "google/gemini-3-flash-preview",
+        });
+        await ctx.supabase.from("messages").insert({
+          conversation_id: delegatedConversationId,
+          role: "agent",
+          content: reply,
+          mention_agent_id: targetAgent.id,
+          model: "google/gemini-3-flash-preview",
+          tokens_in: llmData.usage?.prompt_tokens || 0,
+          tokens_out: llmData.usage?.completion_tokens || 0,
+        });
+      }
+
+      // Also save as mention_response in the main conversation for inline display
       await ctx.supabase.from("messages").insert({
         conversation_id: ctx.conversationId,
         role: "mention_response",
@@ -408,13 +436,13 @@ Respond directly to the task. Be concise and actionable.`;
       await ctx.supabase.from("audit_log").insert({
         actor_type: "agent", actor_id: ctx.agentId,
         action: "delegate_to_agent", target_table: "agents", target_id: targetAgent.id,
-        payload: { from: ctx.agentName, to: targetAgent.name, task: args.task },
+        payload: { from: ctx.agentName, to: targetAgent.name, task: args.task, delegatedConversationId },
       });
 
       return {
         tool_call_id: "", name: "delegate_to_agent", success: true,
-        result: `**${targetAgent.name}** (${targetAgent.canonical_role}) responded:\n\n${reply}`,
-        data: { agent: targetAgent.name, role: targetAgent.canonical_role, tokens },
+        result: `**${targetAgent.name}** (${targetAgent.canonical_role}) responded:\n\n${reply}\n\n<!--DELEGATION:${delegatedConversationId}:${targetAgent.id}:${targetAgent.name}-->`,
+        data: { agent: targetAgent.name, role: targetAgent.canonical_role, tokens, delegatedConversationId, targetAgentId: targetAgent.id },
       };
     },
   },

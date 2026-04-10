@@ -1,6 +1,7 @@
 /**
  * Sage Memory Extraction Engine — Task 3
- * Keyword-based memory extraction from conversations
+ * Quality-focused memory extraction from conversations.
+ * Only saves complete, self-contained facts — never sentence fragments.
  */
 
 export interface MemoryExtraction {
@@ -13,11 +14,11 @@ export interface MemoryExtraction {
   extractedAt: string;
 }
 
-const DECISION_KEYWORDS = ["decided", "will do", "we commit", "going forward", "should", "must", "we'll", "let's go with", "final decision", "approved"];
-const INSIGHT_KEYWORDS = ["insight", "found that", "problem is", "customers want", "realized", "discovered", "turns out", "key takeaway", "important finding"];
-const CONTEXT_KEYWORDS = ["background", "previously", "last time", "history", "context", "for reference", "as discussed", "earlier"];
-const PATTERN_KEYWORDS = ["always", "never", "every time", "tends to", "usually", "consistently", "pattern", "recurring"];
-const PREFERENCE_KEYWORDS = ["prefer", "like", "want", "need", "don't like", "avoid", "favorite", "priority"];
+const DECISION_KEYWORDS = ["decided", "will do", "we commit", "going forward", "let's go with", "final decision", "approved"];
+const INSIGHT_KEYWORDS = ["found that", "problem is", "customers want", "realized", "discovered", "turns out", "key takeaway", "important finding"];
+const CONTEXT_KEYWORDS = ["previously", "last time", "for reference", "as discussed"];
+const PATTERN_KEYWORDS = ["always", "never", "every time", "tends to", "consistently", "recurring"];
+const PREFERENCE_KEYWORDS = ["prefer", "don't like", "avoid", "priority is"];
 
 function findKeywordMatches(text: string, keywords: string[]): string[] {
   const lower = text.toLowerCase();
@@ -29,11 +30,46 @@ function extractSentencesWithKeyword(text: string, keyword: string): string[] {
   return sentences.filter(s => s.toLowerCase().includes(keyword)).map(s => s.trim());
 }
 
+/**
+ * Quality filter: reject sentence fragments, questions, and filler.
+ * A memory must be a self-contained, meaningful statement.
+ */
+function isQualityMemory(text: string): boolean {
+  const trimmed = text.trim();
+
+  // Too short to be meaningful
+  if (trimmed.length < 25) return false;
+  // Too long — probably a whole paragraph, not a single fact
+  if (trimmed.length > 500) return false;
+  // Starts with a bullet/dash but is just a fragment (no verb)
+  const stripped = trimmed.replace(/^[-•*]\s*/, "");
+  if (stripped.length < 20) return false;
+
+  // Reject questions — agents asking "Would you like me to..." is not a memory
+  if (/^(would|could|should|shall|can|do|does|did|is|are|was|were|how|what|where|when|why|which|tell me|let me know)/i.test(stripped)) return false;
+  // Reject prompts/instructions from agent ("Tell me your...", "Please provide...")
+  if (/^(tell me|please provide|please share|let me know|feel free|i'd be happy|i can help)/i.test(stripped)) return false;
+  // Reject filler phrases
+  if (/^(here's|here is|sure|of course|absolutely|certainly|great|okay|alright|no problem|happy to)/i.test(stripped)) return false;
+  // Reject incomplete lines starting with "- " that have no subject+verb
+  if (/^-\s/.test(trimmed) && !/\b(is|are|was|were|has|have|had|will|would|can|could|should|decided|prefer|want|need|use|chose|agreed|confirmed)\b/i.test(stripped)) return false;
+  // Reject if it's just a heading or label
+  if (/^(##|###|\*\*[^*]+\*\*:?\s*$)/.test(trimmed)) return false;
+  // Must contain at least one verb-like word to be a statement
+  if (!/\b(is|are|was|were|has|have|had|will|would|can|could|should|decided|prefer|want|need|use|chose|agreed|confirmed|created|built|launched|set|changed|moved|started|stopped|approved|rejected|scheduled|completed|learned|discovered|found|realized)\b/i.test(stripped)) return false;
+
+  return true;
+}
+
 export function extractMemoriesFromMessage(
   messageContent: string,
   role: "user" | "agent",
   conversationId: string = ""
 ): MemoryExtraction[] {
+  // Only extract from user messages — agent responses are mostly generated advice,
+  // not facts worth remembering. The server-side LLM extraction handles agent responses.
+  if (role === "agent") return [];
+
   const results: MemoryExtraction[] = [];
   const now = new Date().toISOString();
 
@@ -42,6 +78,7 @@ export function extractMemoriesFromMessage(
   for (const kw of decisionMatches) {
     const sentences = extractSentencesWithKeyword(messageContent, kw);
     for (const s of sentences) {
+      if (!isQualityMemory(s)) continue;
       results.push({
         content: s, type: "decision", category: "decision",
         confidence: 90 + Math.min(sentences.length * 2, 10),
@@ -55,6 +92,7 @@ export function extractMemoriesFromMessage(
   for (const kw of insightMatches) {
     const sentences = extractSentencesWithKeyword(messageContent, kw);
     for (const s of sentences) {
+      if (!isQualityMemory(s)) continue;
       results.push({
         content: s, type: "insight", category: "market_data",
         confidence: 70 + Math.min(sentences.length * 3, 15),
@@ -68,6 +106,7 @@ export function extractMemoriesFromMessage(
   for (const kw of contextMatches) {
     const sentences = extractSentencesWithKeyword(messageContent, kw);
     for (const s of sentences) {
+      if (!isQualityMemory(s)) continue;
       results.push({
         content: s, type: "context", category: "company",
         confidence: 50 + Math.min(sentences.length * 5, 20),
@@ -81,6 +120,7 @@ export function extractMemoriesFromMessage(
   for (const kw of patternMatches) {
     const sentences = extractSentencesWithKeyword(messageContent, kw);
     for (const s of sentences) {
+      if (!isQualityMemory(s)) continue;
       results.push({
         content: s, type: "pattern", category: "process",
         confidence: 60 + Math.min(sentences.length * 4, 20),
@@ -94,6 +134,7 @@ export function extractMemoriesFromMessage(
   for (const kw of prefMatches) {
     const sentences = extractSentencesWithKeyword(messageContent, kw);
     for (const s of sentences) {
+      if (!isQualityMemory(s)) continue;
       results.push({
         content: s, type: "preference", category: "preference",
         confidence: 65 + Math.min(sentences.length * 3, 15),
@@ -102,9 +143,8 @@ export function extractMemoriesFromMessage(
     }
   }
 
-  // Filter out low confidence and deduplicate
+  // Deduplicate
   return results
-    .filter(m => m.confidence > 40)
     .filter((m, i, arr) => arr.findIndex(a => a.content === m.content) === i);
 }
 

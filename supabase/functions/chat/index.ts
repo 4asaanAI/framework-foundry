@@ -348,7 +348,26 @@ When you learn important facts, decisions, or preferences from the conversation,
                   model: "google/gemini-2.5-flash-lite",
                   messages: [{
                     role: "system",
-                    content: `You are a memory extraction agent. Analyze the AI assistant's response and extract important facts, decisions, commitments, or learnings. Return ONLY valid JSON: {"memories": [{"content": "...", "category": "decision|client_info|process|preference|company|market_data|conversation_handoff", "confidence": 0.0-1.0}]}. If nothing worth remembering, return {"memories": []}.`,
+                    content: `You are a strict memory extraction agent for an AI workforce platform. Extract ONLY genuinely important, self-contained facts that would be useful in future conversations.
+
+EXTRACT ONLY:
+- Concrete decisions ("We decided to use Stripe for payments")
+- Specific client/contact info ("Client ABC's budget is $50k, contact is John at john@abc.com")
+- Business facts and numbers ("Our MRR is $12k", "Launch date is March 15")
+- User preferences with specifics ("User prefers email over Slack for updates")
+- Process agreements ("All proposals need Abhimanyu's sign-off before sending")
+
+NEVER EXTRACT:
+- Questions the agent asked ("Would you like me to...", "Tell me your preference...")
+- Generic agent offers or advice ("I can help with...", "Here's what I recommend...")
+- Bullet point fragments without context ("- Preferred channel", "- Next steps")
+- Conversational filler ("Sure!", "Great question", "Let me know")
+- Incomplete sentences, headings, or labels
+- Instructions to the user ("Tell me your time zone...")
+
+Each memory MUST be a complete standalone sentence understandable months later without context. Be very selective — returning 0 memories is better than saving vague ones.
+
+Return ONLY valid JSON: {"memories": [{"content": "...", "category": "decision|client_info|process|preference|company|market_data|conversation_handoff", "confidence": 0.0-1.0}]}. If nothing worth remembering, return {"memories": []}.`,
                   }, { role: "user", content: fullContent }],
                 }),
               });
@@ -360,7 +379,7 @@ When you learn important facts, decisions, or preferences from the conversation,
                   const extracted = JSON.parse(jsonMatch[0]);
                   const validCats = ["client_info", "decision", "market_data", "process", "preference", "company", "conversation_handoff"];
                   for (const mem of (extracted.memories || [])) {
-                    if (mem.confidence >= 0.6) {
+                    if (mem.confidence >= 0.75 && mem.content && mem.content.length >= 25) {
                       await sb.from("agent_memories").insert({
                         agent_id: agentId, content: mem.content,
                         category: validCats.includes(mem.category) ? mem.category : "preference",
