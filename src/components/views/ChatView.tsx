@@ -6,7 +6,7 @@ import { usePlugins } from "@/hooks/use-plugins";
 import { useConnectors } from "@/hooks/use-connectors";
 import { useProjects } from "@/hooks/use-projects";
 import { MOCK_AGENTS } from "@/constants/agents";
-import { Send, Plus, FolderKanban, ChevronDown, X, FileText, Image, File, PanelRightClose, ThumbsUp, ThumbsDown, Pin, Download, Star, StarOff, GitBranch, Loader2, AlertTriangle, FileArchive, FileType, ArrowDownToLine } from "lucide-react";
+import { Send, Plus, FolderKanban, ChevronDown, X, FileText, Image, File, PanelRightClose, ThumbsUp, ThumbsDown, Pin, Download, Star, StarOff, GitBranch, Loader2, AlertTriangle, FileArchive, FileType, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -877,7 +877,7 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
     className="p-1 rounded hover:bg-card transition-colors"
     title="Transfer tokens to this agent"
   >
-    <ArrowDownToLine className="h-4 w-4 text-muted-foreground" />
+    <Coins className="h-4 w-4 text-muted-foreground" />
   </button>
   </div>
  </div>
