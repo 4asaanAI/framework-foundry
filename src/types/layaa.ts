@@ -5,9 +5,9 @@ export type Team =
   | "marketing"
   | "revenue"
   | "delivery"
-  | "support"
-  | "product"
-  | "system";
+  | "legal"
+  | "system"
+  | "personal";
 
 export type AgentStatus =
   | "idle"

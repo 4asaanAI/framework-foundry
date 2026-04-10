@@ -8,39 +8,41 @@ import { onAgentDelegation } from "@/lib/webhooks";
 // ─── Delegation keyword map — All 22 agents ───
 
 const DELEGATION_MAP: Record<string, string[]> = {
-  // Founders' Office
-  kabir: ["strategy", "orchestrate", "approve", "company state", "executive", "decision", "prioritize", "roadmap"],
-  kaiser: ["UI", "UX", "frontend", "design", "layout", "component", "visual", "interface", "CSS", "Tailwind", "React"],
+  // Executive & Orchestration
+  kabir: ["strategy", "orchestrate", "approve", "company state", "executive", "decision", "prioritize", "roadmap", "cross-team", "conflict", "synthesize"],
+  kshitiz: ["research", "competitive", "market trends", "customer insights", "intelligence", "benchmark", "data analysis", "data validation", "market data"],
 
-  // Marketing & Brand
-  mira: ["acquisition", "growth", "marketing", "campaign", "brand strategy", "go-to-market", "GTM", "SEO", "content marketing"],
-  tara: ["brand", "message", "voice", "tone", "communication", "copywriting", "tagline", "thought leadership"],
-  zoya: ["growth hack", "retention", "A/B test", "acquisition channel", "viral", "referral", "churn"],
+  // Marketing & Growth
+  mira: ["marketing", "campaign", "brand strategy", "go-to-market", "GTM", "SEO", "content marketing", "messaging", "positioning"],
+  tara: ["brand", "voice", "tone", "copywriting", "tagline", "thought leadership", "content", "writing style"],
+  zoya: ["growth hack", "retention", "A/B test", "acquisition channel", "viral", "referral", "churn", "paid ads", "performance marketing"],
+  nia: ["campaign ops", "scheduling", "funnel", "logistics", "cross-team", "timeline", "campaign coordination", "execution"],
 
-  // Revenue
-  rishi: ["pricing", "revenue", "budget", "cost", "profit", "margins", "financial", "billing", "subscription", "pipeline"],
-  yuvaan: ["sales", "call prep", "proposal", "objection", "collateral", "pitch deck", "demo", "outbound"],
-  veer: ["pricing model", "contract terms", "discount", "commercial", "deal structure", "SaaS pricing"],
+  // Revenue & Finance
+  rishi: ["revenue", "pipeline", "deal", "sales strategy", "revenue ops", "CRM", "forecast", "quota"],
+  yuvaan: ["sales", "call prep", "proposal", "objection", "collateral", "pitch deck", "demo", "outbound", "prospect"],
+  veer: ["pricing", "unit economics", "contract terms", "discount", "commercial", "deal structure", "SaaS pricing", "margins"],
+  anne: ["compliance", "financial compliance", "audit", "chartered accountant", "audit trail", "financial risk"],
+  aarav: ["bookkeeping", "invoice", "expense", "accounts", "GST", "TDS", "financial report", "P&L", "balance sheet", "payroll"],
 
-  // Delivery & Operations
-  ujjwal: ["automate", "workflow", "process", "integration", "tool", "n8n", "zapier", "API", "webhook"],
-  rohit: ["QA", "test", "testing", "bug", "validate", "quality assurance", "regression", "debug"],
-  anne: ["compliance", "risk", "data handling", "contractual", "regulatory risk", "audit trail"],
+  // Legal & Governance
+  abhay: ["legal", "contract", "agreement", "liability", "terms", "NDA", "SLA", "legal risk", "clause"],
+  preeti: ["regulatory", "DPDP", "data protection", "privacy policy", "RBI", "MCA", "MEITY", "data governance", "GDPR"],
 
-  // Support & Knowledge
-  sage: ["memory", "remember", "recall", "knowledge", "insight", "decision log", "context", "history"],
-  abhay: ["legal", "contract", "compliance", "agreement", "risk", "liability", "terms", "NDA", "SLA"],
-  preeti: ["regulatory", "GDPR", "data protection", "privacy policy", "RBI", "MCA", "MEITY"],
-  kshitiz: ["research", "competitive", "market trends", "customer insights", "intelligence", "benchmark"],
-  nia: ["campaign ops", "scheduling", "coordination", "logistics", "cross-team", "timeline"],
+  // Client Delivery & Product
+  rohit: ["QA", "test", "testing", "bug", "validate", "quality assurance", "regression", "debug", "review output"],
+  ujjawal: ["automate", "workflow", "automation", "integration", "n8n", "zapier", "API", "webhook", "process improvement"],
+  arjun: ["client", "discovery", "onboarding", "requirement", "stakeholder", "client strategy", "scoping"],
+  arush: ["documentation", "SOP", "knowledge base", "training", "handover", "enablement", "guide", "manual"],
+  dev: ["product", "roadmap", "sprint", "backlog", "feature", "product manager", "prioritisation", "ticket"],
 
-  // Product (reserved)
-  arjun: ["customer success", "onboarding", "NPS", "churn", "customer health", "renewal"],
-  dev: ["product engineering", "feature", "sprint", "backlog", "technical debt", "architecture"],
+  // System Agents
+  kaiser: ["system health", "cron", "backup", "infrastructure", "monitoring", "admin", "server", "uptime"],
+  sage: ["memory", "remember", "recall", "context", "history", "decision log", "insight", "knowledge"],
 
-  // System (reserved)
-  neha: ["infrastructure", "server", "hosting", "cloud", "AWS", "deployment", "monitoring"],
-  veda: ["DevOps", "CI/CD", "Docker", "Kubernetes", "pipeline", "release", "rollback"],
+  // Personal Agents
+  arya: ["abhimanyu", "my tasks", "my calendar", "my priorities", "my schedule"],
+  ananya: ["shubham", "tech tasks", "CTO", "technical priorities"],
 };
 
 // Agent name → agent ID mapping (populated from DB at runtime)
