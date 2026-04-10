@@ -58,7 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (p: Profile) => {
     setLoading(true);
-    const password = "Layaa2024!Secure";
+    // Derive a per-profile password so no single shared secret sits in source
+    const encoder = new TextEncoder();
+    const data = encoder.encode(`layaa-os:${p.email}:2024`);
+    const hashBuf = await crypto.subtle.digest("SHA-256", data);
+    const hashArr = Array.from(new Uint8Array(hashBuf));
+    const password = "L!" + hashArr.map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 30);
     // Try sign in first
     const { error } = await supabase.auth.signInWithPassword({ email: p.email, password });
     if (error) {
