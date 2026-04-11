@@ -56,11 +56,11 @@ export function useActivateContext() {
       if (!user) throw new Error("Not authenticated");
 
       // Deactivate all current active contexts
-      await supabase
+      await (supabase
         .from("work_contexts")
-        .update({ is_active: false } as any)
+        .update({ is_active: false } as any) as any)
         .eq("user_id", user.id)
-        .eq("is_active" as any, true);
+        .eq("is_active", true);
 
       // Activate the selected context
       const { error } = await supabase
