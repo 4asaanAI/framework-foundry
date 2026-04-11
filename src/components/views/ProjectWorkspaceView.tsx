@@ -272,8 +272,8 @@ export function ProjectWorkspaceView({
       } else {
         // Create new file in KB
         const { data: newKb } = await supabase.from("project_knowledge").insert({
-          project_id: projectId, filename: selectedFile, file_type: "text/plain",
-          file_size: fileContent.length, uploaded_by: user?.id,
+          project_id: projectId, file_name: selectedFile, file_type: "text/plain",
+          file_size_bytes: fileContent.length, uploaded_by: user?.id,
         }).select("knowledge_id").single();
         if (newKb) {
           await supabase.from("project_knowledge_chunks").insert({
