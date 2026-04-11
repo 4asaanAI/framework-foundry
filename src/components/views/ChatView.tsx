@@ -1285,14 +1285,19 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
   </button>
   </div>
  </div>
- {/* Budget exhaustion banner */}
- {activeAgent.budget_used >= (activeAgent.budget_tokens + (activeAgent.budget_loaned ?? 0)) && (
- <div className="px-4 py-2 bg-destructive/10 border-b border-destructive/20">
- <p className="text-xs text-destructive">
- ⚠️ {activeAgent.name}'s token budget is exhausted. Transfer tokens from another agent or increase this agent's allocation.
- </p>
- </div>
- )}
+  {/* Budget exhaustion banner — recompute from latest agent data */}
+  {(() => {
+    const eff = (activeAgent.budget_tokens ?? 0) + (activeAgent.budget_loaned ?? 0);
+    const used = activeAgent.budget_used ?? 0;
+    return eff > 0 && used >= eff;
+  })() && (
+  <div className="px-4 py-2 bg-destructive/10 border-b border-destructive/20 flex items-center justify-between">
+  <p className="text-xs text-destructive">
+  ⚠️ {activeAgent.name}'s token budget is exhausted. Transfer tokens from another agent or increase allocation.
+  </p>
+  <button onClick={() => { queryClient.invalidateQueries({ queryKey: ["agents"] }); setShowTokenTransfer(true); }} className="text-xs text-primary underline ml-2 whitespace-nowrap">Transfer Tokens</button>
+  </div>
+  )}
 
  {/* Messages area */}
  <ScrollArea className="flex-1">
