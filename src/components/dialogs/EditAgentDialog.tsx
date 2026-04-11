@@ -34,6 +34,12 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
   const [newMemoryCategory, setNewMemoryCategory] = useState("preference");
   const [customApiKey, setCustomApiKey] = useState("");
   const [customApiBaseUrl, setCustomApiBaseUrl] = useState("");
+  // Schedule state
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduleFreq, setScheduleFreq] = useState<"daily" | "weekly" | "monthly">("weekly");
+  const [scheduleDay, setScheduleDay] = useState("1"); // 0=Sun, 1=Mon,...
+  const [scheduleTime, setScheduleTime] = useState("09:00");
+  const [schedulePrompt, setSchedulePrompt] = useState("");
 
   const resetForm = (a: AgentRow) => {
     setName(a.name);
