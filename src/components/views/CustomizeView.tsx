@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from "react";
-import { Search, Plug, CheckCircle2, Plus, Upload, X, Zap, Puzzle, Star, StarOff, Pencil } from "lucide-react";
+import { Search, Plug, CheckCircle2, Plus, Upload, X, Zap, Puzzle, Star, StarOff, Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

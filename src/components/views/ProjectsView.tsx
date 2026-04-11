@@ -8,8 +8,8 @@ import { EditProjectDialog } from "@/components/dialogs/EditProjectDialog";
 import { ProjectDetailsPanel } from "@/components/dialogs/ProjectDetailsPanel";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { isFileSystemAccessSupported, pickFolder, storeDirectoryHandle } from "@/lib/filesystem";
 import { openFolderAsProject } from "@/lib/projects";
+import { supabase } from "@/integrations/supabase/client";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const MOCK_PROJECTS = [
