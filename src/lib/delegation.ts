@@ -312,7 +312,8 @@ export async function executeChain(
     const result = await callLLM(
       [{ role: "user", content: `${step.instruction}\n\nContext:\n${currentInput}` }],
       _opts?.model ?? "gpt-4o-mini",
-      _opts?.provider ?? "openai"
+      _opts?.provider ?? "openai",
+      ""
     );
     results.push(result);
     currentInput = result;
