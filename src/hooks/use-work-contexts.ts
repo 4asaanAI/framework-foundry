@@ -84,11 +84,11 @@ export function useDeactivateContext() {
   return useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Not authenticated");
-      await supabase
+      await (supabase
         .from("work_contexts")
-        .update({ is_active: false } as any)
+        .update({ is_active: false } as any) as any)
         .eq("user_id", user.id)
-        .eq("is_active" as any, true);
+        .eq("is_active", true);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["work-contexts"] });
