@@ -32,30 +32,7 @@ export function ProjectsView() {
     ? projects.filter((p: any) => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.description?.toLowerCase().includes(searchQuery.toLowerCase()))
     : projects;
 
-  const handleOpenFolder = async () => {
-    if (!isFileSystemAccessSupported()) {
-      toast.error("Folder access requires Chrome or Edge browser");
-      return;
-    }
-    if (!user) return;
-
-    try {
-      const result = await pickFolder();
-      if (!result) return; // user cancelled
-
-      const { projectId, contextId } = await openFolderAsProject({
-        folderPath: result.name,
-        displayName: result.name,
-        userId: user.id,
-      });
-
-      // Store the handle in memory for file operations
-      storeDirectoryHandle(contextId, result.handle);
-      toast.success(`Opened "${result.name}" as a project`);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to open folder");
-    }
-  };
+  // Folder import is handled inline via the file input
 
   if (isLoading) {
     return (
