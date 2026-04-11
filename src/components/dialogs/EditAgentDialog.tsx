@@ -50,6 +50,24 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
     setBudgetTokens(a.budget_tokens);
     setCustomApiKey((a as any).custom_api_key || "");
     setCustomApiBaseUrl((a as any).custom_api_base_url || "");
+    // Load schedule from localStorage
+    const saved = localStorage.getItem(`agent_schedule_${a.id}`);
+    if (saved) {
+      try {
+        const s = JSON.parse(saved);
+        setScheduleEnabled(s.enabled ?? false);
+        setScheduleFreq(s.frequency ?? "weekly");
+        setScheduleDay(s.day ?? "1");
+        setScheduleTime(s.time ?? "09:00");
+        setSchedulePrompt(s.prompt ?? "");
+      } catch { /* ignore */ }
+    } else {
+      setScheduleEnabled(false);
+      setScheduleFreq("weekly");
+      setScheduleDay("1");
+      setScheduleTime("09:00");
+      setSchedulePrompt("");
+    }
   };
 
   useEffect(() => {
