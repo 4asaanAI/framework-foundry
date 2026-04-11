@@ -254,7 +254,7 @@ function NavItem({ item, activeView, onClick, userId }: { item: typeof NAV_ITEMS
   );
 }
 
-
+export function AppSidebar({ activeView, onViewChange, onAgentClick, selectedAgentId, mobileOpen, onMobileClose }: SidebarProps) {
   const { data: dbAgents } = useAgents();
   const { user } = useAuth();
   const queryClient = useQueryClient();
