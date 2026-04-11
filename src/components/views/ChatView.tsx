@@ -551,12 +551,24 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  }
  }
 
- // Detect /skill invocation — load skill context for injection
+ // Detect /skill invocation — load skill context for injection (supports key=value params)
  let skillContext = "";
- const skillMatch = trimmed.match(/^\/(\S+)/);
+ const skillMatch = trimmed.match(/^\/(\S+)(.*)/);
  if (skillMatch && skills) {
  const matchedSkill = skills.find((s: any) => s.name === skillMatch[1]);
  if (matchedSkill) {
+ // Parse key=value parameters after the skill name
+ const paramStr = (skillMatch[2] || "").trim();
+ const params: Record<string, string> = {};
+ const paramRegex = /(\w+)=(\S+)/g;
+ let m;
+ while ((m = paramRegex.exec(paramStr)) !== null) {
+   params[m[1]] = m[2];
+ }
+ const paramSection = Object.keys(params).length > 0
+   ? `\n**Parameters provided:** ${Object.entries(params).map(([k, v]) => `${k} = ${v}`).join(", ")}`
+   : "";
+
  // Map skill categories to available tools the agent should use
  const SKILL_TOOL_MAP: Record<string, string> = {
  sales: "Use tools: create_task, save_memory, save_project_memory, delegate_to_agent (to Yuvaan/Rishi for sales tasks)",
@@ -571,8 +583,8 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  };
  const toolGuidance = SKILL_TOOL_MAP[matchedSkill.category || ""] || "Use the most appropriate tools from your available set to execute this skill.";
 
- skillContext = `\n[SKILL CONTEXT — LAYAA OS]\nThe user invoked the /${matchedSkill.name} skill. Follow these instructions carefully and take action using your tools — don't just describe what you would do.\n\n**Skill:** ${matchedSkill.name}\n**Instructions:** ${matchedSkill.description || ""}\n**Category:** ${matchedSkill.category || "general"}\n**Tool guidance:** ${toolGuidance}\n\nExecute the skill by calling the relevant tools. If the skill requires multiple steps, work through them sequentially.\n[END SKILL CONTEXT]`;
- toast.info(`Skill /${matchedSkill.name} activated`);
+ skillContext = `\n[SKILL CONTEXT — LAYAA OS]\nThe user invoked the /${matchedSkill.name} skill. Follow these instructions carefully and take action using your tools — don't just describe what you would do.\n\n**Skill:** ${matchedSkill.name}\n**Instructions:** ${matchedSkill.description || ""}\n**Category:** ${matchedSkill.category || "general"}\n**Tool guidance:** ${toolGuidance}${paramSection}\n\nExecute the skill by calling the relevant tools. If the skill requires multiple steps, work through them sequentially.\n[END SKILL CONTEXT]`;
+ toast.info(`Skill /${matchedSkill.name} activated${Object.keys(params).length > 0 ? ` with ${Object.keys(params).length} params` : ""}`);
  }
  }
 
