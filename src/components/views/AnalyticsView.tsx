@@ -34,6 +34,31 @@ export function AnalyticsView() {
       return next;
     });
   };
+
+  // Widget order for drag-rearrange
+  const DEFAULT_WIDGET_ORDER = ["daily", "agents-budget", "performance"];
+  const [widgetOrder, setWidgetOrder] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("layaa_widget_order") || "null") || DEFAULT_WIDGET_ORDER; } catch { return DEFAULT_WIDGET_ORDER; }
+  });
+  const dragItem = useRef<string | null>(null);
+  const dragOverItem = useRef<string | null>(null);
+
+  const handleDragStart = (id: string) => { dragItem.current = id; };
+  const handleDragOver = (e: React.DragEvent, id: string) => { e.preventDefault(); dragOverItem.current = id; };
+  const handleDrop = () => {
+    if (!dragItem.current || !dragOverItem.current || dragItem.current === dragOverItem.current) return;
+    const newOrder = [...widgetOrder];
+    const fromIdx = newOrder.indexOf(dragItem.current);
+    const toIdx = newOrder.indexOf(dragOverItem.current);
+    if (fromIdx < 0 || toIdx < 0) return;
+    newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, dragItem.current);
+    setWidgetOrder(newOrder);
+    localStorage.setItem("layaa_widget_order", JSON.stringify(newOrder));
+    dragItem.current = null;
+    dragOverItem.current = null;
+  };
+  const resetLayout = () => { setWidgetOrder(DEFAULT_WIDGET_ORDER); localStorage.removeItem("layaa_widget_order"); toast.success("Layout reset"); };
   // CSV export
   const handleCSVExport = () => {
     const rows = [["Agent", "Tokens In", "Tokens Out", "Total", "Cost USD", "Budget", "Used"]];
