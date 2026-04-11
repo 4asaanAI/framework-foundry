@@ -214,7 +214,47 @@ function ProfileFooter() {
   );
 }
 
-export function AppSidebar({ activeView, onViewChange, onAgentClick, selectedAgentId, mobileOpen, onMobileClose }: SidebarProps) {
+function NavItem({ item, activeView, onClick, userId }: { item: typeof NAV_ITEMS[0]; activeView: string; onClick: () => void; userId?: string }) {
+  const isActive = activeView === item.id || (item.id === "insights" && (activeView === "dashboard" || activeView === "analytics"));
+
+  // Unread DM count for Messages tab
+  const { data: unreadCount } = useQuery({
+    queryKey: ["unread-dm-count", userId],
+    enabled: item.id === "messages" && !!userId,
+    refetchInterval: 5000,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("direct_messages")
+        .select("*", { count: "exact", head: true })
+        .eq("receiver_id", userId!)
+        .eq("is_read", false);
+      if (error) return 0;
+      return count || 0;
+    },
+  });
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200",
+        isActive
+          ? "bg-primary/10 text-primary shadow-sm"
+          : "text-muted-foreground hover:text-foreground hover:bg-card/60"
+      )}
+    >
+      <item.icon className="h-4 w-4 shrink-0" />
+      {item.label}
+      {item.id === "messages" && unreadCount && unreadCount > 0 ? (
+        <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+          {unreadCount}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+
   const { data: dbAgents } = useAgents();
   const { user } = useAuth();
   const queryClient = useQueryClient();
