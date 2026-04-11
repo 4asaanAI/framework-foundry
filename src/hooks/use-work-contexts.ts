@@ -34,11 +34,11 @@ export function useActiveContext() {
     queryKey: ["active-context", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from("work_contexts")
-        .select("*, projects(project_id, name, description, instructions)")
+        .select("*, projects(project_id, name, description, instructions)") as any)
         .eq("user_id", user!.id)
-        .eq("is_active" as any, true)
+        .eq("is_active", true)
         .limit(1)
         .maybeSingle();
       if (error) throw error;
