@@ -960,7 +960,6 @@ export function getToolDefinitions(): { type: "function"; function: { name: stri
     },
 }));
 }
-}
 
 /** Execute a tool call */
 export async function executeTool(toolCall: ToolCall, ctx: ToolContext): Promise<ToolResult> {
