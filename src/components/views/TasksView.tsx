@@ -199,8 +199,8 @@ export function TasksView() {
                     {/* Name */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        {blocked && <Lock className="h-3 w-3 text-warning shrink-0" title="Blocked by dependency" />}
-                        {task.is_recurring && <RefreshCw className="h-3 w-3 text-primary shrink-0" title="Recurring" />}
+                        {blocked && <Lock className="h-3 w-3 text-warning shrink-0" />}
+                        {task.is_recurring && <RefreshCw className="h-3 w-3 text-primary shrink-0" />}
                         <span className="text-foreground font-medium">{task.title}</span>
                         {task.meta.subtasks.length > 0 && (
                           <span className="text-xs text-muted-foreground flex items-center gap-0.5">
