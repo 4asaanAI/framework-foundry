@@ -179,10 +179,11 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
         </DialogHeader>
 
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="kb" className="flex items-center gap-1"><Database className="h-3 w-3" /> KB</TabsTrigger>
             <TabsTrigger value="memory" className="flex items-center gap-1"><Brain className="h-3 w-3" /> Memory</TabsTrigger>
+            <TabsTrigger value="schedule" className="flex items-center gap-1"><CalendarClock className="h-3 w-3" /> Schedule</TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-1"><History className="h-3 w-3" /> History</TabsTrigger>
           </TabsList>
 
