@@ -887,6 +887,64 @@ Respond directly to the task. Be concise and actionable.`;
       return { tool_call_id: "", name: "write_project_file", success: true, result: `Created **${filename}** in project (${chunks.length} chunks, ${content.length} chars). The file is available in the project workspace file tree.` };
     },
   },
+
+  // ── CODE EXECUTION ───────────────────────────────────────────────────────
+
+  {
+    name: "run_code",
+    description: "Execute code in a sandboxed environment and return stdout/stderr. Use for data analysis, calculations, script testing, generating outputs, or any task that benefits from running code. Supported languages: javascript, python.",
+    parameters: {
+      type: "object",
+      properties: {
+        language: { type: "string", enum: ["javascript", "python"], description: "Programming language to execute" },
+        code: { type: "string", description: "The source code to execute. Must be self-contained." },
+      },
+      required: ["language", "code"],
+    },
+    tier: 1,
+    handler: async (args, ctx) => {
+      const language = String(args.language || "javascript");
+      const code = String(args.code || "");
+
+      if (!code.trim()) {
+        return { tool_call_id: "", name: "run_code", success: false, result: "No code provided." };
+      }
+
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const res = await fetch(`${supabaseUrl}/functions/v1/execute-code`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({ language, code }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          return { tool_call_id: "", name: "run_code", success: false, result: `Execution error: ${data.error || "Unknown error"}` };
+        }
+
+        const output = [
+          data.stdout ? `**stdout:**\n\`\`\`\n${data.stdout}\n\`\`\`` : "",
+          data.stderr ? `**stderr:**\n\`\`\`\n${data.stderr}\n\`\`\`` : "",
+        ].filter(Boolean).join("\n\n") || "*(no output)*";
+
+        return {
+          tool_call_id: "",
+          name: "run_code",
+          success: data.exitCode === 0,
+          result: output,
+          data: { stdout: data.stdout, stderr: data.stderr, exitCode: data.exitCode },
+        };
+      } catch (err: any) {
+        return { tool_call_id: "", name: "run_code", success: false, result: `Failed to execute code: ${err.message}` };
+      }
+    },
+  },
 ];
 
 // ─── Registry Functions ────────────────────────────────────────────────────────
