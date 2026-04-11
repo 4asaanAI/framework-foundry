@@ -398,7 +398,7 @@ export function CustomizeView() {
  if (result.inserted > 0) { toast.success(`Seeded ${result.inserted} skills (${result.skipped} skipped)`); }
  else if (result.skipped > 0) { toast.info(`All ${result.skipped} skills already exist`); }
  else { toast.error("Seeding failed — database may require authentication. Go to Supabase dashboard and disable RLS on the skills table, or sign in with a valid Supabase account."); }
- queryClient.invalidateQueries({ queryKey: ["skills"] });
+ qc.invalidateQueries({ queryKey: ["skills"] });
  } catch (e: any) { toast.error(`Seed failed: ${e.message}`); }
  }}><Zap className="h-3.5 w-3.5 mr-1" /> Seed 88 Skills</Button>
  <Button size="sm" variant="outline" onClick={() => setShowUploadSkill(true)}><Upload className="h-3.5 w-3.5 mr-1" /> Upload skill</Button>

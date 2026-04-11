@@ -138,9 +138,9 @@ export async function sendCrossAdminNotification(params: {
       profile_id: params.targetProfileId,
       title: params.title,
       body: `[From ${params.sourceAgentName}] ${params.body}`,
-      category: params.category || "system",
+      category: (params.category || "system") as any,
       is_read: false,
-    });
+    } as any);
   } catch (e) {
     console.error("[Webhooks] Cross-admin notification failed:", e);
   }

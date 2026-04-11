@@ -175,7 +175,7 @@ export function resolveOfflineConflict(id: string, keepLocal: boolean): void {
   const conflict = conflicts.find(c => c.id === id);
   if (conflict && keepLocal) {
     // Overwrite server with local data
-    supabase.from(conflict.type + "s").upsert(conflict.localData, { onConflict: "id" });
+    (supabase.from as any)(conflict.type + "s").upsert(conflict.localData, { onConflict: "id" });
   }
   // Remove from conflicts list either way
   localStorage.setItem(CONFLICTS_KEY, JSON.stringify(conflicts.filter(c => c.id !== id)));
