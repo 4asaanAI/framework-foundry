@@ -36,6 +36,11 @@ export interface TaskMeta {
   dealValue?: number; // ₹ amount for CRM deals
   contact?: TaskContact;
   comments?: { author: string; text: string; timestamp: string }[];
+  dependencies?: string[]; // task IDs this task is blocked by
+  recurrence?: {
+    frequency: "daily" | "weekly" | "monthly";
+    next_due?: string;
+  };
 }
 
 const META_REGEX = /^<!--LAYAA_META:(.*?)-->\n?/;
