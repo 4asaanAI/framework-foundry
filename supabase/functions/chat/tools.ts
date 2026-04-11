@@ -900,7 +900,8 @@ export function getToolDefinitions(): { type: "function"; function: { name: stri
       description: t.description,
       parameters: t.parameters,
     },
-  }));
+}));
+}
 }
 
 /** Execute a tool call */
