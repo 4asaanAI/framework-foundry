@@ -125,6 +125,16 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
     if (error) {
       toast.error(error.message);
     } else {
+      // Save schedule to localStorage
+      if (agent) {
+        localStorage.setItem(`agent_schedule_${agent.id}`, JSON.stringify({
+          enabled: scheduleEnabled,
+          frequency: scheduleFreq,
+          day: scheduleDay,
+          time: scheduleTime,
+          prompt: schedulePrompt,
+        }));
+      }
       toast.success(`${name} updated`);
       queryClient.invalidateQueries({ queryKey: ["agents"] });
       onOpenChange(false);
