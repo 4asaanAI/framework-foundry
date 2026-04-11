@@ -126,9 +126,9 @@ export async function activateProject(
   userId: string
 ): Promise<WorkContext | null> {
   // Deactivate all current active contexts for this user
-  await supabase
+  await (supabase
     .from("work_contexts")
-    .update({ is_active: false } as any)
+    .update({ is_active: false } as any) as any)
     .eq("user_id", userId)
     .eq("is_active", true);
 
@@ -178,9 +178,9 @@ export async function activateProject(
  * Clears active state — agent returns to global (non-project) mode.
  */
 export async function deactivateProject(userId: string): Promise<void> {
-  await supabase
+  await (supabase
     .from("work_contexts")
-    .update({ is_active: false } as any)
+    .update({ is_active: false } as any) as any)
     .eq("user_id", userId)
     .eq("is_active", true);
 }
@@ -189,9 +189,9 @@ export async function deactivateProject(userId: string): Promise<void> {
  * Get the currently active work context for a user.
  */
 export async function getActiveContext(userId: string): Promise<WorkContext | null> {
-  const { data } = await supabase
+  const { data } = await (supabase
     .from("work_contexts")
-    .select("*")
+    .select("*") as any)
     .eq("user_id", userId)
     .eq("is_active", true)
     .limit(1)
