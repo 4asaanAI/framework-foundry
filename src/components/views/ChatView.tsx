@@ -614,9 +614,10 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  attachments: attachedFiles.length > 0 ? attachedFiles : undefined,
  mention_agent_id: mentionedAgent?.id ?? null,
  });
- const userMsg = message.trim();
- setMessage(""); setAttachedFiles([]);
- localStorage.removeItem(`draft_${activeAgent.id}`);
+  const userMsg = message.trim();
+  setMessage(""); setAttachedFiles([]);
+  setSelectedProject(null);
+  localStorage.removeItem(`draft_${activeAgent.id}`);
  queryClient.invalidateQueries({ queryKey: ["messages", conversationId] });
 
  // Sage Memory Intelligence: extract from user message (fire-and-forget)

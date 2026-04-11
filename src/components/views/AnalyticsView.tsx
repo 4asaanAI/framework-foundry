@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useAgents } from "@/hooks/use-agents";
 import { useAgentUsageSummary, useTokenUsageLogs } from "@/hooks/use-token-usage";
 import { useConversations } from "@/hooks/use-conversations";
 import { MOCK_AGENTS } from "@/constants/agents";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend } from "recharts";
-import { Loader2, TrendingUp, Zap, DollarSign, Bot, Download, Calendar, Eye, EyeOff } from "lucide-react";
+import { Loader2, TrendingUp, Zap, DollarSign, Bot, Download, Calendar, Eye, EyeOff, GripVertical, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
@@ -34,6 +34,31 @@ export function AnalyticsView() {
       return next;
     });
   };
+
+  // Widget order for drag-rearrange
+  const DEFAULT_WIDGET_ORDER = ["daily", "agents-budget", "performance"];
+  const [widgetOrder, setWidgetOrder] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("layaa_widget_order") || "null") || DEFAULT_WIDGET_ORDER; } catch { return DEFAULT_WIDGET_ORDER; }
+  });
+  const dragItem = useRef<string | null>(null);
+  const dragOverItem = useRef<string | null>(null);
+
+  const handleDragStart = (id: string) => { dragItem.current = id; };
+  const handleDragOver = (e: React.DragEvent, id: string) => { e.preventDefault(); dragOverItem.current = id; };
+  const handleDrop = () => {
+    if (!dragItem.current || !dragOverItem.current || dragItem.current === dragOverItem.current) return;
+    const newOrder = [...widgetOrder];
+    const fromIdx = newOrder.indexOf(dragItem.current);
+    const toIdx = newOrder.indexOf(dragOverItem.current);
+    if (fromIdx < 0 || toIdx < 0) return;
+    newOrder.splice(fromIdx, 1);
+    newOrder.splice(toIdx, 0, dragItem.current);
+    setWidgetOrder(newOrder);
+    localStorage.setItem("layaa_widget_order", JSON.stringify(newOrder));
+    dragItem.current = null;
+    dragOverItem.current = null;
+  };
+  const resetLayout = () => { setWidgetOrder(DEFAULT_WIDGET_ORDER); localStorage.removeItem("layaa_widget_order"); toast.success("Layout reset"); };
   // CSV export
   const handleCSVExport = () => {
     const rows = [["Agent", "Tokens In", "Tokens Out", "Total", "Cost USD", "Budget", "Used"]];
@@ -163,6 +188,9 @@ export function AnalyticsView() {
             {/* CSV Export */}
             <button onClick={handleCSVExport} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card text-xs font-medium text-muted-foreground hover:text-foreground transition-all duration-200">
               <Download className="h-3.5 w-3.5" /> CSV
+            </button>
+            <button onClick={resetLayout} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card text-xs font-medium text-muted-foreground hover:text-foreground transition-all duration-200" title="Reset widget layout">
+              <RotateCcw className="h-3.5 w-3.5" /> Reset
             </button>
           </div>
         </div>

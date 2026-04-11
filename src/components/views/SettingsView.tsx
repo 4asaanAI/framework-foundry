@@ -866,6 +866,18 @@ function TokenDistributionSection() {
           <Wand2 className="h-3.5 w-3.5 mr-1" />
           Sort by Usage
         </Button>
+        <Button size="sm" variant="outline" onClick={() => {
+          const equal = Math.floor(profilePool / activeAgents.length);
+          const newBudgets: Record<string, number> = {};
+          activeAgents.forEach((a, i) => {
+            newBudgets[a.id] = equal + (i < profilePool - equal * activeAgents.length ? 1 : 0);
+          });
+          setAgentBudgets(newBudgets);
+          toast.success("Tokens redistributed equally");
+        }}>
+          <Coins className="h-3.5 w-3.5 mr-1" />
+          Equal Split
+        </Button>
       </div>
 
       {/* Per-agent sliders */}
