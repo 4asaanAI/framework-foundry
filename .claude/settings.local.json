@@ -3,7 +3,17 @@
     "allow": [
       "Bash(npx tsc:*)",
       "Bash(./node_modules/.bin/tsc --noEmit)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(echo \"src diff exit: $?\")",
+      "Bash(echo \"supabase diff exit: $?\")",
+      "Bash(bun run:*)",
+      "Bash(where bun:*)",
+      "Bash(where npm:*)",
+      "Bash(where node:*)",
+      "Bash(npm run:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

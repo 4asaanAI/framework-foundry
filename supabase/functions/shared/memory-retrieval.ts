@@ -22,18 +22,35 @@ interface RetrievalOptions {
   limit?: number;
 }
 
+// Weight scoring by type priority: decisions > constraints > preferences > context > patterns
+const TYPE_WEIGHTS: Record<string, number> = {
+  decision: 1.0, process: 0.9, preference: 0.8,
+  client_info: 0.85, company: 0.7, market_data: 0.65,
+  conversation_handoff: 0.5,
+};
+
 function computeRelevance(memory: Memory, queryTerms: string[]): number {
-  if (!queryTerms.length) return memory.confidence;
-
   const text = `${memory.key} ${memory.value}`.toLowerCase();
-  const matchCount = queryTerms.filter((t) => text.includes(t)).length;
-  const keywordScore = matchCount / queryTerms.length;
 
+  // Keyword match score
+  let keywordScore = 0;
+  if (queryTerms.length) {
+    const matchCount = queryTerms.filter((t) => text.includes(t)).length;
+    keywordScore = matchCount / queryTerms.length;
+  }
+
+  // Recency decay
   const ageMs = Date.now() - new Date(memory.updated_at).getTime();
   const ageDays = ageMs / (1000 * 60 * 60 * 24);
-  const recencyDecay = Math.exp(-0.05 * ageDays);
+  const recencyDecay = Math.exp(-0.03 * ageDays);
 
-  return keywordScore * 0.6 + recencyDecay * 0.25 + memory.confidence * 0.15;
+  // Type weight
+  const typeWeight = TYPE_WEIGHTS[memory.category] ?? 0.5;
+
+  if (queryTerms.length) {
+    return keywordScore * 0.45 + recencyDecay * 0.2 + memory.confidence * 0.2 + typeWeight * 0.15;
+  }
+  return recencyDecay * 0.3 + memory.confidence * 0.4 + typeWeight * 0.3;
 }
 
 /** Fetch relevant memories by keyword match, recency, and confidence. */
@@ -115,21 +132,32 @@ export async function retrieveMemories(
     .map((r) => r.memory);
 }
 
-/** Format memories as a [Relevant Memories] block for system prompt injection. */
+/** Format memories as a synthesized instruction block for system prompt injection (Sage Memory Intelligence). */
 export function formatMemoriesForPrompt(memories: Memory[]): string {
   if (!memories.length) return handleEmptyMemories();
 
-  const lines = memories.map(
-    (m) =>
-      `- [${m.category}] ${m.key}: ${m.value} (source: ${m.source}, updated: ${m.updated_at.split("T")[0]})`
-  );
+  // Group by domain for structured injection
+  const domainMap: Record<string, string> = {
+    decision: "Decision History", preference: "User Preferences",
+    process: "Processes & Constraints", company: "Company & Project Context",
+    client_info: "Client Intelligence", market_data: "Market & Industry Data",
+    conversation_handoff: "Handoff Notes",
+  };
+  const groups: Record<string, string[]> = {};
+  for (const m of memories) {
+    const domain = domainMap[m.category] || "General";
+    if (!groups[domain]) groups[domain] = [];
+    groups[domain].push(`- ${m.key ? `${m.key}: ` : ""}${m.value}`);
+  }
+  const domainOrder = ["Decision History", "Processes & Constraints", "User Preferences", "Client Intelligence", "Company & Project Context", "Market & Industry Data", "Handoff Notes", "General"];
+  const sections = domainOrder.filter(d => groups[d]?.length).map(d => `### ${d}\n${groups[d]!.join("\n")}`);
 
-  return `[Relevant Memories]\n${lines.join("\n")}`;
+  return `[SAGE MEMORY CONTEXT — LAYAA OS]\n${sections.join("\n\n")}\n[END SAGE MEMORY]`;
 }
 
 /** Graceful handling when no memories are found. */
 export function handleEmptyMemories(): string {
-  return "[Relevant Memories]\nNo relevant memories found for this context.";
+  return "";
 }
 
 serve(async (req: Request) => {

@@ -203,7 +203,7 @@ export function DirectoryDialog({ open, onOpenChange, defaultTab = "skills" }: D
               </div>
 
               {showCreateSkill && (
-                <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+                <div className="rounded-xl border border-border bg-card p-4 space-y-3">
                   <div className="flex justify-between items-center">
                     <h4 className="text-sm font-medium">Create New Skill</h4>
                     <button onClick={() => setShowCreateSkill(false)}><X className="h-4 w-4 text-muted-foreground" /></button>
@@ -217,7 +217,7 @@ export function DirectoryDialog({ open, onOpenChange, defaultTab = "skills" }: D
               )}
 
               {showUploadSkill && (
-                <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+                <div className="rounded-xl border border-border bg-card p-4 space-y-3">
                   <div className="flex justify-between items-center">
                     <h4 className="text-sm font-medium">Upload Skill File</h4>
                     <button onClick={() => setShowUploadSkill(false)}><X className="h-4 w-4 text-muted-foreground" /></button>
@@ -235,12 +235,12 @@ export function DirectoryDialog({ open, onOpenChange, defaultTab = "skills" }: D
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{cat}</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {filteredSkills.filter(s => s.category === cat).map(skill => (
-                      <div key={skill.id} className="flex items-center gap-3 rounded-lg border border-border bg-background p-3 hover:border-primary/30 transition-colors">
+                      <div key={skill.id} className="flex items-center gap-3 rounded-lg border border-border bg-background p-3 hover:border-primary/30 transition-all duration-200">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-foreground">{skill.name}</p>
                           <p className="text-xs text-muted-foreground truncate">{skill.description}</p>
                         </div>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">{skill.category}</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-card border border-border text-muted-foreground">{skill.category}</span>
                       </div>
                     ))}
                   </div>
@@ -258,7 +258,7 @@ export function DirectoryDialog({ open, onOpenChange, defaultTab = "skills" }: D
               </div>
 
               {showAddCustom && (
-                <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+                <div className="rounded-xl border border-border bg-card p-4 space-y-3">
                   <div className="flex justify-between items-center">
                     <h4 className="text-sm font-medium">Add Custom Connector</h4>
                     <button onClick={() => setShowAddCustom(false)}><X className="h-4 w-4 text-muted-foreground" /></button>
@@ -305,13 +305,13 @@ export function DirectoryDialog({ open, onOpenChange, defaultTab = "skills" }: D
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Library</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {filteredLibConnectors.map(c => (
-                    <div key={c.name} className="flex items-center gap-3 rounded-lg border border-border bg-background p-3 hover:border-primary/30 transition-colors">
+                    <div key={c.name} className="flex items-center gap-3 rounded-lg border border-border bg-background p-3 hover:border-primary/30 transition-all duration-200">
                       <span className="text-lg">{c.icon}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground">{c.name}</p>
                         <p className="text-xs text-muted-foreground truncate">{c.desc}</p>
                       </div>
-                      <button onClick={() => addLibraryConnector(c)} className="p-1 rounded hover:bg-card transition-colors">
+                      <button onClick={() => addLibraryConnector(c)} className="p-1 rounded hover:bg-card transition-all duration-200">
                         <Plus className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                       </button>
                     </div>
@@ -344,13 +344,13 @@ export function DirectoryDialog({ open, onOpenChange, defaultTab = "skills" }: D
                 <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Library</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {filteredLibPlugins.map(p => (
-                    <div key={p.name} className="flex items-center gap-3 rounded-lg border border-border bg-background p-3 hover:border-primary/30 transition-colors">
+                    <div key={p.name} className="flex items-center gap-3 rounded-lg border border-border bg-background p-3 hover:border-primary/30 transition-all duration-200">
                       <span className="text-lg">{p.icon}</span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-foreground">{p.name}</p>
                         <p className="text-xs text-muted-foreground truncate">{p.desc}</p>
                       </div>
-                      <button onClick={() => addLibraryPlugin(p)} className="p-1 rounded hover:bg-card transition-colors">
+                      <button onClick={() => addLibraryPlugin(p)} className="p-1 rounded hover:bg-card transition-all duration-200">
                         <Plus className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                       </button>
                     </div>

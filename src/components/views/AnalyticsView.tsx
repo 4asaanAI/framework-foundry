@@ -4,9 +4,10 @@ import { useAgentUsageSummary, useTokenUsageLogs } from "@/hooks/use-token-usage
 import { useConversations } from "@/hooks/use-conversations";
 import { MOCK_AGENTS } from "@/constants/agents";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend } from "recharts";
-import { Loader2, TrendingUp, Zap, DollarSign, Bot } from "lucide-react";
+import { Loader2, TrendingUp, Zap, DollarSign, Bot, Download, Calendar, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { toast } from "sonner";
 
 const CHART_COLORS = ["#E87A2E", "#2B5797", "#10B981", "#8B5CF6", "#EC4899", "#F59E0B", "#06B6D4", "#EF4444"];
 
@@ -17,6 +18,31 @@ export function AnalyticsView() {
   const { data: conversations } = useConversations();
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const { data: agentLogs } = useTokenUsageLogs(selectedAgentId || undefined);
+  // Date range
+  const [dateRange, setDateRange] = useState(7);
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
+  // Widget visibility
+  const [hiddenWidgets, setHiddenWidgets] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("layaa_hidden_widgets") || "[]")); } catch { return new Set(); }
+  });
+  const toggleWidget = (id: string) => {
+    setHiddenWidgets(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      localStorage.setItem("layaa_hidden_widgets", JSON.stringify([...next]));
+      return next;
+    });
+  };
+  // CSV export
+  const handleCSVExport = () => {
+    const rows = [["Agent", "Tokens In", "Tokens Out", "Total", "Cost USD", "Budget", "Used"]];
+    agentTotals.forEach(a => rows.push([a.name, String(a.tokensIn), String(a.tokensOut), String(a.total), a.cost.toFixed(4), String(a.budget), String(a.used)]));
+    const csv = rows.map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `layaa-analytics-${Date.now()}.csv`; a.click(); URL.revokeObjectURL(url);
+    toast.success("Analytics exported as CSV");
+  };
 
   if (isLoading) {
     return <div className="h-full flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
@@ -39,10 +65,11 @@ export function AnalyticsView() {
   const totalBudget = agents.reduce((s, a) => s + a.budget_tokens, 0);
   const totalUsed = agents.reduce((s, a) => s + a.budget_used, 0);
 
-  // Daily usage for line chart (last 7 days)
+  // Daily usage for line chart (configurable range)
+  const effectiveDays = dateRange;
   const dailyUsage = (() => {
     const days: Record<string, { date: string; tokens: number; cost: number }> = {};
-    for (let i = 6; i >= 0; i--) {
+    for (let i = effectiveDays - 1; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const key = d.toISOString().slice(0, 10);
@@ -85,14 +112,37 @@ export function AnalyticsView() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="px-6 py-5 border-b border-border">
-        <h1 className="text-lg font-semibold text-foreground">Analytics & Performance</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Token usage, cost tracking, and agent performance metrics</p>
+      <div className="px-3 sm:px-6 py-4 sm:py-5 border-b border-border bg-background">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">Analytics & Performance</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Token usage, cost tracking, and agent performance metrics</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Date range */}
+            <div className="flex gap-1">
+              {[7, 30, 90].map(d => (
+                <button key={d} onClick={() => setDateRange(d)}
+                  className={cn("px-2 py-1 rounded-lg text-xs font-medium transition-all duration-200", dateRange === d ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
+                  {d}d
+                </button>
+              ))}
+              <input type="date" value={customStart} onChange={e => { setCustomStart(e.target.value); if (customEnd) { const days = Math.ceil((new Date(customEnd).getTime() - new Date(e.target.value).getTime()) / 86400000); if (days > 0) setDateRange(days); }}}
+                className="px-2 py-1 rounded-lg border border-border bg-card text-xs w-28" />
+              <input type="date" value={customEnd} onChange={e => { setCustomEnd(e.target.value); if (customStart) { const days = Math.ceil((new Date(e.target.value).getTime() - new Date(customStart).getTime()) / 86400000); if (days > 0) setDateRange(days); }}}
+                className="px-2 py-1 rounded-lg border border-border bg-card text-xs w-28" />
+            </div>
+            {/* CSV Export */}
+            <button onClick={handleCSVExport} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card text-xs font-medium text-muted-foreground hover:text-foreground transition-all duration-200">
+              <Download className="h-3.5 w-3.5" /> CSV
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="px-6 py-4 space-y-6">
+      <div className="px-3 sm:px-6 py-4 space-y-4 sm:space-y-6">
         {/* Stats cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {stats.map((s) => (
             <div key={s.label} className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -105,8 +155,13 @@ export function AnalyticsView() {
         </div>
 
         {/* Daily usage chart */}
-        <div className="rounded-xl border border-border bg-card p-5">
-          <h3 className="text-sm font-semibold text-foreground mb-4">Token Usage — Last 7 Days</h3>
+        <div className="rounded-xl border border-border bg-card p-5 transition-all duration-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-foreground">Token Usage — Last {effectiveDays} Days</h3>
+            <button onClick={() => toggleWidget("daily")} className="p-1 rounded text-muted-foreground hover:text-foreground transition-all duration-200">
+              {hiddenWidgets.has("daily") ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            </button>
+          </div>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={dailyUsage}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -120,7 +175,7 @@ export function AnalyticsView() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Per-agent bar chart */}
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-xl border border-border bg-card p-5 transition-all duration-200">
             <h3 className="text-sm font-semibold text-foreground mb-4">Tokens by Agent</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={agentTotals.slice(0, 10)} layout="vertical">
@@ -137,7 +192,7 @@ export function AnalyticsView() {
           </div>
 
           {/* Budget pie chart */}
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-xl border border-border bg-card p-5 transition-all duration-200">
             <h3 className="text-sm font-semibold text-foreground mb-4">Budget Allocation</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -153,18 +208,18 @@ export function AnalyticsView() {
         </div>
 
         {/* Per-agent details */}
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card p-5 transition-all duration-200">
           <h3 className="text-sm font-semibold text-foreground mb-4">Agent Performance</h3>
           <div className="flex gap-2 mb-4 flex-wrap">
             <button
               onClick={() => setSelectedAgentId(null)}
-              className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-colors", !selectedAgentId ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}
+              className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200", !selectedAgentId ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}
             >All</button>
             {agents.filter((a) => a.is_active).map((a) => (
               <button
                 key={a.id}
                 onClick={() => setSelectedAgentId(a.id)}
-                className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-colors", selectedAgentId === a.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}
+                className={cn("px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200", selectedAgentId === a.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}
               >{a.name}</button>
             ))}
           </div>
@@ -173,15 +228,15 @@ export function AnalyticsView() {
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 <div className="p-3 rounded-lg bg-background border border-border">
-                  <p className="text-[10px] text-muted-foreground">Budget Used</p>
+                  <p className="text-xs text-muted-foreground">Budget Used</p>
                   <p className="text-lg font-bold font-mono text-foreground">{selectedAgent.budget_used.toLocaleString()} / {selectedAgent.budget_tokens.toLocaleString()}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-background border border-border">
-                  <p className="text-[10px] text-muted-foreground">Conversations</p>
+                  <p className="text-xs text-muted-foreground">Conversations</p>
                   <p className="text-lg font-bold font-mono text-foreground">{conversations?.filter((c: any) => c.agent_id === selectedAgentId).length ?? 0}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-background border border-border">
-                  <p className="text-[10px] text-muted-foreground">Model</p>
+                  <p className="text-xs text-muted-foreground">Model</p>
                   <p className="text-sm font-mono text-foreground truncate">{selectedAgent.default_model}</p>
                 </div>
               </div>
@@ -190,7 +245,7 @@ export function AnalyticsView() {
                 <div className="space-y-1">
                   {conversationBreakdown.length === 0 && <p className="text-xs text-muted-foreground py-4 text-center">No usage logs yet for this agent</p>}
                   {conversationBreakdown.map((c, i) => (
-                    <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/50">
+                    <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted/40">
                       <span className="text-xs text-foreground truncate max-w-[60%]">{c.name}</span>
                       <div className="flex items-center gap-3">
                         <span className="text-xs font-mono text-muted-foreground">{c.tokens.toLocaleString()} tokens</span>
@@ -204,7 +259,7 @@ export function AnalyticsView() {
           ) : (
             <div className="space-y-2">
               {agentTotals.filter((a) => a.used > 0 || a.total > 0).map((a) => (
-                <div key={a.id} className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-muted/50 cursor-pointer" onClick={() => setSelectedAgentId(a.id)}>
+                <div key={a.id} className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-muted/40 cursor-pointer" onClick={() => setSelectedAgentId(a.id)}>
                   <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: a.color }} />
                   <span className="text-xs text-foreground flex-1">{a.name}</span>
                   <div className="flex items-center gap-4">

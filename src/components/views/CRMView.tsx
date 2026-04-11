@@ -5,7 +5,8 @@ import { MOCK_AGENTS } from "@/constants/agents";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { Plus, Loader2, GripVertical, Trash2, X } from "lucide-react";
+import { Plus, Loader2, GripVertical, Trash2, X, IndianRupee, User2 } from "lucide-react";
+import { parseTaskMeta, PRIORITY_CONFIG, type TaskPriority } from "@/lib/tasks";
 import { NewTaskDialog } from "@/components/dialogs/NewTaskDialog";
 import { EditTaskDialog } from "@/components/dialogs/EditTaskDialog";
 import { toast } from "sonner";
@@ -105,7 +106,7 @@ export function CRMView() {
             {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
           <button onClick={() => setShowNew(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-all duration-200">
             <Plus className="h-4 w-4" /> New Task
           </button>
         </div>
@@ -124,11 +125,21 @@ export function CRMView() {
                 onDrop={() => handleDrop(col.id)}
               >
                 <div className="px-4 py-3 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-foreground">{col.label}</span>
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">{col.label}</span>
+                    {/* Column deal value total */}
+                    {(() => {
+                      const total = colTasks.reduce((s, t) => {
+                        const { meta } = parseTaskMeta(t.description || "");
+                        return s + (meta.dealValue || 0);
+                      }, 0);
+                      return total > 0 ? <p className="text-xs text-success font-mono">₹{total.toLocaleString("en-IN")}</p> : null;
+                    })()}
+                  </div>
                   <div className="flex items-center gap-1">
-                    <span className="text-[10px] text-muted-foreground bg-background px-2 py-0.5 rounded-full">{colTasks.length}</span>
+                    <span className="text-xs text-muted-foreground bg-background px-2 py-0.5 rounded-full">{colTasks.length}</span>
                     {!isDefaultCol && (
-                      <button onClick={() => deleteColumn(col.id)} className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete column">
+                      <button onClick={() => deleteColumn(col.id)} className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all duration-200" title="Delete column">
                         <Trash2 className="h-3 w-3" />
                       </button>
                     )}
@@ -149,20 +160,32 @@ export function CRMView() {
                           <div className="flex items-start gap-2">
                             <GripVertical className="h-3.5 w-3.5 text-muted-foreground mt-0.5 opacity-0 group-hover:opacity-100 cursor-grab shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium text-foreground truncate">{task.title}</p>
-                              {task.description && <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{task.description}</p>}
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-medium text-foreground truncate">{task.title}</p>
+                                {(() => { const { meta } = parseTaskMeta(task.description || ""); return meta.priority !== "P2" ? <span className={cn("text-xs px-1 py-0 rounded border", PRIORITY_CONFIG[meta.priority as TaskPriority]?.color)}>{meta.priority}</span> : null; })()}
+                              </div>
+                              {(() => {
+                                const { meta, cleanDescription } = parseTaskMeta(task.description || "");
+                                return (
+                                  <>
+                                    {meta.dealValue && <p className="text-xs text-success font-mono mt-0.5 flex items-center gap-0.5"><IndianRupee className="h-3 w-3" />{meta.dealValue.toLocaleString("en-IN")}</p>}
+                                    {meta.contact?.name && <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-0.5"><User2 className="h-3 w-3" />{meta.contact.name}{meta.contact.company ? ` · ${meta.contact.company}` : ""}</p>}
+                                    {cleanDescription && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{cleanDescription}</p>}
+                                  </>
+                                );
+                              })()}
                               <div className="flex items-center gap-2 mt-2">
                                 {agent && (
                                   <div className="flex items-center gap-1">
-                                    <div className="w-4 h-4 rounded flex items-center justify-center text-[7px] font-bold"
+                                    <div className="w-4 h-4 rounded flex items-center justify-center text-xs font-bold"
                                       style={{ backgroundColor: agent.avatar_color + "20", color: agent.avatar_color }}>
                                       {agent.avatar_initials}
                                     </div>
-                                    <span className="text-[10px] text-muted-foreground">{agent.name}</span>
+                                    <span className="text-xs text-muted-foreground">{agent.name}</span>
                                   </div>
                                 )}
                                 {task.due_date && (
-                                  <span className="text-[10px] text-muted-foreground ml-auto">
+                                  <span className="text-xs text-muted-foreground ml-auto">
                                     {(() => { try { return format(new Date(task.due_date), "MMM d"); } catch { return ""; } })()}
                                   </span>
                                 )}
@@ -188,7 +211,7 @@ export function CRMView() {
                     ) : (
                       <button
                         onClick={() => setShowNew(true)}
-                        className="flex items-center justify-center gap-1 w-full py-2 rounded-lg text-[10px] text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
+                        className="flex items-center justify-center gap-1 w-full py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-card transition-all duration-200"
                       >
                         <Plus className="h-3 w-3" /> Add card
                       </button>

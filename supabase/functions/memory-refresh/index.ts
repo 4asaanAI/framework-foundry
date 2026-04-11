@@ -49,7 +49,19 @@ async function extractMemories(messages: Message[]): Promise<ExtractedMemory[]> 
       messages: [
         {
           role: "user",
-          content: `Extract key facts, decisions, preferences, and action items from this conversation. Return ONLY a JSON array of objects with fields: key (short label), value (detail), confidence (0-1), category (fact|decision|preference|action_item).\n\nConversation:\n${conversationText}`,
+          content: `You are Sage, the Memory Intelligence agent for Layaa OS — an AI workforce platform by Layaa AI.
+
+Extract key knowledge from this conversation. Classify each extraction:
+- "decision" → key choices made (category: "decision")
+- "preference" → user likes/dislikes/defaults (category: "preference")
+- "constraint" → limits, budgets, deadlines, rules (category: "process")
+- "context_fact" → company/project/contact facts (category: "company" or "client_info")
+- "pattern" → recurring workflows/processes (category: "process")
+
+Return ONLY a JSON array of objects with fields: key (short label), value (complete standalone sentence), confidence (0-1), category (decision|preference|process|company|client_info|market_data).
+Each value MUST be understandable months later without context. Be selective — 0 extractions is better than vague ones.
+
+Conversation:\n${conversationText}`,
         },
       ],
     }),
