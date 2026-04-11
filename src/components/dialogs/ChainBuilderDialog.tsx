@@ -1,12 +1,8 @@
 /**
  * Chain Workflow Builder — Layaa OS
- *
- * Dialog for defining sequential agent chains (Agent1 → Agent2 → Agent3).
- * Each step has an agent selection and an instruction.
- * Saved chains can be executed from the dialog or chat.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +13,6 @@ import { createChain, getChains, deleteChain, executeChain, type AgentChain } fr
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Plus, Trash2, Play, ArrowRight, ChevronDown, ChevronUp, Link2, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface ChainBuilderDialogProps {
   open: boolean;
@@ -30,28 +25,29 @@ export function ChainBuilderDialog({ open, onOpenChange }: ChainBuilderDialogPro
   const activeAgents = agents.filter(a => a.is_active);
 
   const [chainName, setChainName] = useState("");
-  const [originalPrompt, setOriginalPrompt] = useState("");
   const [steps, setSteps] = useState<{ agentId: string; agentName: string; instruction: string }[]>([
     { agentId: "", agentName: "", instruction: "" },
   ]);
-  const [savedChains, setSavedChains] = useState<AgentChain[]>(() => getChains());
+  const [savedChains, setSavedChains] = useState<AgentChain[]>([]);
   const [showSaved, setShowSaved] = useState(false);
   const [runningChainId, setRunningChainId] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const handleRunChain = async (chainId: string) => {
-    if (!user) return;
-    setRunningChainId(chainId);
+  useEffect(() => {
+    if (open) {
+      getChains().then(setSavedChains).catch(() => {});
+    }
+  }, [open]);
+
+  const handleRunChain = async (chain: AgentChain) => {
+    setRunningChainId(chain.id);
     try {
-      await executeChain(chainId, user.id, "google/gemini-3-flash-preview", "lovable", "", (stepIdx, output) => {
-        toast.success(`Step ${stepIdx + 1} completed`);
-        setSavedChains(getChains());
-      });
-      setSavedChains(getChains());
+      await executeChain(chain, "Execute this chain workflow");
+      const updated = await getChains();
+      setSavedChains(updated);
       toast.success("Chain completed");
     } catch (err: any) {
       toast.error(`Chain failed: ${err.message}`);
-      setSavedChains(getChains());
     } finally {
       setRunningChainId(null);
     }
@@ -87,25 +83,36 @@ export function ChainBuilderDialog({ open, onOpenChange }: ChainBuilderDialogPro
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!chainName.trim()) { toast.error("Chain name is required"); return; }
-    if (!originalPrompt.trim()) { toast.error("Original prompt is required"); return; }
     if (steps.some(s => !s.agentId || !s.instruction.trim())) { toast.error("All steps need an agent and instruction"); return; }
+    if (!user) { toast.error("Not authenticated"); return; }
 
-    createChain(chainName.trim(), steps, originalPrompt.trim());
-    setSavedChains(getChains());
-    toast.success(`Chain "${chainName}" saved with ${steps.length} steps`);
-
-    // Reset form
-    setChainName("");
-    setOriginalPrompt("");
-    setSteps([{ agentId: "", agentName: "", instruction: "" }]);
+    try {
+      await createChain(
+        chainName.trim(),
+        steps.map(s => ({ agent_id: s.agentId, instruction: s.instruction })),
+        user.id
+      );
+      const updated = await getChains();
+      setSavedChains(updated);
+      toast.success(`Chain "${chainName}" saved with ${steps.length} steps`);
+      setChainName("");
+      setSteps([{ agentId: "", agentName: "", instruction: "" }]);
+    } catch (err: any) {
+      toast.error(`Save failed: ${err.message}`);
+    }
   };
 
-  const handleDelete = (chainId: string) => {
-    deleteChain(chainId);
-    setSavedChains(getChains());
-    toast.success("Chain deleted");
+  const handleDelete = async (chainId: string) => {
+    try {
+      await deleteChain(chainId);
+      const updated = await getChains();
+      setSavedChains(updated);
+      toast.success("Chain deleted");
+    } catch (err: any) {
+      toast.error(`Delete failed: ${err.message}`);
+    }
   };
 
   return (
@@ -119,19 +126,13 @@ export function ChainBuilderDialog({ open, onOpenChange }: ChainBuilderDialogPro
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 pt-2">
-          {/* Chain name + original prompt */}
           <div className="space-y-3">
             <div>
               <label className="text-xs font-medium text-foreground mb-1 block">Chain Name</label>
               <Input value={chainName} onChange={e => setChainName(e.target.value)} placeholder="e.g. Content Review Pipeline" className="text-sm" />
             </div>
-            <div>
-              <label className="text-xs font-medium text-foreground mb-1 block">Original Task / Prompt</label>
-              <Textarea value={originalPrompt} onChange={e => setOriginalPrompt(e.target.value)} placeholder="What do you want the chain to accomplish?" rows={2} className="text-sm" />
-            </div>
           </div>
 
-          {/* Steps */}
           <div className="space-y-3">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Steps</h3>
             {steps.map((step, i) => (
@@ -173,14 +174,10 @@ export function ChainBuilderDialog({ open, onOpenChange }: ChainBuilderDialogPro
             </button>
           </div>
 
-          {/* Save button */}
           <div className="flex gap-2 pt-2">
-            <Button onClick={handleSave} className="flex-1">
-              Save Chain
-            </Button>
+            <Button onClick={handleSave} className="flex-1">Save Chain</Button>
           </div>
 
-          {/* Saved chains */}
           <div className="border-t border-border pt-3">
             <button onClick={() => setShowSaved(!showSaved)} className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-all duration-200">
               {showSaved ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
@@ -193,29 +190,14 @@ export function ChainBuilderDialog({ open, onOpenChange }: ChainBuilderDialogPro
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium text-foreground">{chain.name}</span>
                       <div className="flex gap-1">
-                        <span className={cn("text-xs px-2 py-0.5 rounded-full",
-                          chain.status === "completed" ? "bg-success/10 text-success" :
-                          chain.status === "running" ? "bg-warning/10 text-warning" :
-                          chain.status === "failed" ? "bg-destructive/10 text-destructive" :
-                          "bg-muted text-muted-foreground"
-                        )}>{chain.status}</span>
-                        {chain.status === "pending" && (
-                          <button onClick={() => handleRunChain(chain.id)} disabled={runningChainId === chain.id}
-                            className="p-1 text-primary hover:bg-primary/10 rounded transition-all duration-200" title="Run chain">
-                            {runningChainId === chain.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
-                          </button>
-                        )}
+                        <button onClick={() => handleRunChain(chain)} disabled={runningChainId === chain.id}
+                          className="p-1 text-primary hover:bg-primary/10 rounded transition-all duration-200" title="Run chain">
+                          {runningChainId === chain.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+                        </button>
                         <button onClick={() => handleDelete(chain.id)} className="p-1 text-muted-foreground hover:text-destructive transition-all duration-200"><Trash2 className="h-3 w-3" /></button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      {chain.steps.map((s, i) => (
-                        <span key={i} className="flex items-center gap-1">
-                          <span className="font-medium text-foreground">{s.agentName}</span>
-                          {i < chain.steps.length - 1 && <ArrowRight className="h-3 w-3" />}
-                        </span>
-                      ))}
-                    </div>
+                    <div className="text-xs text-muted-foreground">{chain.steps.length} steps</div>
                   </div>
                 ))}
               </div>

@@ -8,22 +8,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
-import { reinforceMemory } from "@/lib/memory";
 
 interface RightPanelProps {
   selectedAgentId?: string | null;
 }
 
-// Group DB categories into display domains
-const DOMAIN_ORDER = [
-  { key: "decision", label: "Decisions", color: "bg-blue-500/10 text-blue-400" },
-  { key: "process", label: "Processes & Constraints", color: "bg-purple-500/10 text-purple-400" },
-  { key: "preference", label: "Preferences", color: "bg-pink-500/10 text-pink-400" },
-  { key: "client_info", label: "Client Intelligence", color: "bg-green-500/10 text-green-400" },
-  { key: "company", label: "Company Context", color: "bg-cyan-500/10 text-cyan-400" },
-  { key: "market_data", label: "Market Data", color: "bg-yellow-500/10 text-yellow-400" },
-  { key: "conversation_handoff", label: "Handoffs", color: "bg-orange-500/10 text-orange-400" },
-];
+const CATEGORY_COLORS: Record<string, string> = {
+  decision: "bg-primary/10 text-primary",
+  client_info: "bg-info/10 text-info",
+  market_data: "bg-warning/10 text-warning",
+  process: "bg-success/10 text-success",
+  preference: "bg-accent text-accent-foreground",
+  company: "bg-secondary text-secondary-foreground",
+  conversation_handoff: "bg-muted text-muted-foreground",
+};
 
 export function RightPanel({ selectedAgentId }: RightPanelProps) {
   const { data: dbAgents } = useAgents();
@@ -62,14 +60,6 @@ export function RightPanel({ selectedAgentId }: RightPanelProps) {
     else { toast.success("Memory deleted"); invalidateMemories(); }
   };
 
-  // Group memories by category domain
-  const groupedMemories = DOMAIN_ORDER
-    .map(domain => ({
-      ...domain,
-      items: (memories ?? []).filter(m => m.category === domain.key),
-    }))
-    .filter(g => g.items.length > 0);
-
   return (
     <aside className="w-[320px] h-full border-l border-border bg-background overflow-y-auto shrink-0 hidden xl:block">
       {/* Agent Info */}
@@ -103,58 +93,70 @@ export function RightPanel({ selectedAgentId }: RightPanelProps) {
         </div>
       </div>
 
-      {/* Sage Context — Grouped Memory Panel */}
-      <div className="px-4 py-4">
+      {/* Memory Panel */}
+      <div className="px-4 py-4 border-b border-border">
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-          <Brain className="h-3 w-3" /> Sage Context
+          <Brain className="h-3 w-3" /> Relevant Memory
         </h4>
         {memoriesLoading ? (
           <div className="flex items-center justify-center py-6">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           </div>
-        ) : groupedMemories.length > 0 ? (
-          <div className="space-y-4">
-            {groupedMemories.map(group => (
-              <div key={group.key}>
-                <h5 className={cn("text-xs font-semibold uppercase tracking-wider mb-1.5 px-1.5 py-0.5 rounded inline-block", group.color)}>
-                  {group.label}
-                </h5>
-                <div className="space-y-1.5 mt-1">
-                  {group.items.map((mem) => (
-                    <div key={mem.id} className="group p-2 rounded-lg bg-card border border-border text-xs hover:border-primary/30 transition-all duration-200">
-                      {editingId === mem.id ? (
-                        <div className="space-y-2">
-                          <Textarea value={editContent} onChange={(e) => setEditContent(e.target.value)} rows={2} className="text-xs" />
-                          <div className="flex gap-1 justify-end">
-                            <button onClick={saveEdit} className="p-1 text-success hover:bg-success/10 rounded"><Check className="h-3.5 w-3.5" /></button>
-                            <button onClick={() => setEditingId(null)} className="p-1 text-muted-foreground hover:bg-muted rounded"><X className="h-3.5 w-3.5" /></button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-start gap-1">
-                            <p className="text-foreground leading-snug flex-1">{mem.content}</p>
-                            <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                              <button onClick={() => startEdit(mem)} className="p-0.5 text-muted-foreground hover:text-foreground rounded" title="Edit"><Pencil className="h-3 w-3" /></button>
-                              <button onClick={() => deleteMemory(mem.id)} className="p-0.5 text-muted-foreground hover:text-destructive rounded" title="Delete"><Trash2 className="h-3 w-3" /></button>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <div className="flex-1 h-1 rounded-full bg-background overflow-hidden">
-                              <div className="h-full rounded-full bg-primary/60" style={{ width: `${Math.round(Number(mem.confidence) * 100)}%` }} />
-                            </div>
-                            <span className="text-xs text-muted-foreground font-mono">{Math.round(Number(mem.confidence) * 100)}%</span>
-                          </div>
-                        </>
-                      )}
+        ) : memories && memories.length > 0 ? (
+          <div className="space-y-2">
+            {memories.map((mem) => (
+              <div key={mem.id} className="group p-2.5 rounded-lg bg-card border border-border text-xs hover:border-primary/30 transition-colors">
+                {editingId === mem.id ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      rows={2}
+                      className="text-xs"
+                    />
+                    <div className="flex gap-1 justify-end">
+                      <button onClick={saveEdit} className="p-1 text-success hover:bg-success/10 rounded">
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={() => setEditingId(null)} className="p-1 text-muted-foreground hover:bg-muted rounded">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-start gap-1">
+                      <p className="text-foreground leading-snug flex-1">{mem.content}</p>
+                      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button onClick={() => startEdit(mem)} className="p-0.5 text-muted-foreground hover:text-foreground rounded" title="Edit">
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button onClick={() => deleteMemory(mem.id)} className="p-0.5 text-muted-foreground hover:text-destructive rounded" title="Delete">
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <div className="flex-1 h-1 rounded-full bg-background overflow-hidden">
+                        <div className="h-full rounded-full bg-primary/60" style={{ width: `${Math.round(Number(mem.confidence) * 100)}%` }} />
+                      </div>
+                      <span className="text-muted-foreground font-mono">{Math.round(Number(mem.confidence) * 100)}</span>
+                    </div>
+                    <div className="flex gap-1 mt-1.5">
+                      <span className={cn("px-1.5 py-0.5 rounded text-[10px]", CATEGORY_COLORS[mem.category] || "bg-muted text-muted-foreground")}>
+                        {mem.category.replace(/_/g, " ")}
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded bg-background text-muted-foreground text-[10px]">
+                        {mem.memory_type}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground italic py-4 text-center">No memories yet. Chat with this agent to build Sage context.</p>
+          <p className="text-xs text-muted-foreground italic py-4 text-center">No memories yet. Chat with this agent to build context.</p>
         )}
       </div>
     </aside>

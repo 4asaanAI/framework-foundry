@@ -88,101 +88,18 @@ async function syncItem(item: QueuedItem): Promise<void> {
       break;
     }
     case "memory": {
-      // Sage Memory Intelligence: dedup check on offline sync
-      const payload = item.payload as any;
-      if (payload.agent_id && payload.content) {
-        const { data: existing } = await supabase.from("agent_memories")
-          .select("id, content, confidence")
-          .eq("agent_id", payload.agent_id).eq("is_compressed", false);
-        const newTokens = new Set(String(payload.content).toLowerCase().replace(/[^a-z0-9\s]/g, "").split(" "));
-        const dup = (existing ?? []).find((e: any) => {
-          const oldTokens = new Set(String(e.content).toLowerCase().replace(/[^a-z0-9\s]/g, "").split(" "));
-          let overlap = 0; for (const t of newTokens) { if (oldTokens.has(t)) overlap++; }
-          return (2 * overlap) / (newTokens.size + oldTokens.size) > 0.8;
-        });
-        if (dup) {
-          // Merge instead of insert
-          await supabase.from("agent_memories")
-            .update({ confidence: Math.min(1, Number(dup.confidence) + 0.05), last_refreshed_at: new Date().toISOString() })
-            .eq("id", dup.id);
-          break;
-        }
-      }
-      const { error } = await supabase.from("agent_memories").insert(payload);
+      const { error } = await supabase.from("agent_memories").insert(item.payload);
       if (error) throw new Error(`Failed to sync memory: ${error.message}`);
       break;
     }
     case "task": {
-      // Conflict detection: check if task was modified by someone else while offline
-      const taskPayload = item.payload as any;
-      if (taskPayload.id) {
-        const { data: serverVersion } = await supabase.from("tasks")
-          .select("updated_at").eq("id", taskPayload.id).single();
-        if (serverVersion && taskPayload._offline_timestamp) {
-          const serverTime = new Date(serverVersion.updated_at).getTime();
-          const offlineTime = new Date(taskPayload._offline_timestamp).getTime();
-          if (serverTime > offlineTime) {
-            // Conflict: server was modified after we went offline
-            addOfflineConflict({
-              type: "task",
-              id: taskPayload.id,
-              localData: taskPayload,
-              serverTimestamp: serverVersion.updated_at,
-              localTimestamp: taskPayload._offline_timestamp,
-            });
-            break; // Don't overwrite — let user resolve
-          }
-        }
-        delete taskPayload._offline_timestamp;
-        const { error } = await supabase.from("tasks").upsert(taskPayload, { onConflict: "id" });
-        if (error) throw new Error(`Failed to sync task: ${error.message}`);
-      } else {
-        const { error } = await supabase.from("tasks").insert(item.payload);
-        if (error) throw new Error(`Failed to sync task: ${error.message}`);
-      }
+      const { error } = await supabase.from("tasks").insert(item.payload);
+      if (error) throw new Error(`Failed to sync task: ${error.message}`);
       break;
     }
     default:
       console.warn(`Unknown queue item type: ${item.type}`);
   }
-}
-
-// ─── Offline Conflict Management ────────────────────────────────────────────
-
-export interface OfflineConflict {
-  type: string;
-  id: string;
-  localData: any;
-  serverTimestamp: string;
-  localTimestamp: string;
-}
-
-const CONFLICTS_KEY = "layaa_offline_conflicts";
-
-function addOfflineConflict(conflict: OfflineConflict): void {
-  const existing = getOfflineConflicts();
-  existing.push(conflict);
-  localStorage.setItem(CONFLICTS_KEY, JSON.stringify(existing));
-}
-
-export function getOfflineConflicts(): OfflineConflict[] {
-  try { return JSON.parse(localStorage.getItem(CONFLICTS_KEY) || "[]"); }
-  catch { return []; }
-}
-
-export function resolveOfflineConflict(id: string, keepLocal: boolean): void {
-  const conflicts = getOfflineConflicts();
-  const conflict = conflicts.find(c => c.id === id);
-  if (conflict && keepLocal) {
-    // Overwrite server with local data
-    supabase.from(conflict.type + "s").upsert(conflict.localData, { onConflict: "id" });
-  }
-  // Remove from conflicts list either way
-  localStorage.setItem(CONFLICTS_KEY, JSON.stringify(conflicts.filter(c => c.id !== id)));
-}
-
-export function clearOfflineConflicts(): void {
-  localStorage.setItem(CONFLICTS_KEY, "[]");
 }
 
 export async function forceSyncNow(): Promise<{ synced: number; failed: number }> {

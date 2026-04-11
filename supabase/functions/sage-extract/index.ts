@@ -57,28 +57,17 @@ serve(async (req) => {
           messages: [
             {
               role: "system",
-              content: `You are Sage, the Memory Intelligence agent for Layaa OS — an AI workforce platform by Layaa AI Private Limited. Your job is to extract meaningful, lasting knowledge from conversations that will help agents serve users better in future sessions.
+              content: `You are Sage, a memory extraction agent. Analyze the message and extract meaningful facts, decisions, client information, or process knowledge. 
 
-CLASSIFY each extraction into exactly ONE type:
-- "decision" → category "decision" — concrete choices made ("We decided to use Stripe", "Going with PostgreSQL")
-- "preference" → category "preference" — user likes/dislikes/defaults ("User prefers markdown", "Always use INR")
-- "constraint" → category "process" — limits, budgets, deadlines, rules ("Budget is ₹50k", "Must ship by March")
-- "context_fact" → category "company" (or "client_info" / "market_data") — company/project/contact/market facts
-- "pattern" → category "process" — recurring processes, workflows, SOPs ("Weekly standup on Monday")
-
-QUALITY RULES:
-- Each memory MUST be a complete standalone sentence understandable months later without context
-- Minimum 25 characters, maximum 500 characters
-- NO questions, agent offers, filler, headings, or fragments
-- Returning 0 memories is better than saving vague ones
-
-Do NOT extract information already known:
+IMPORTANT: Do NOT extract information that is already known. Here are existing memories:
 ${existingContext}
 
-Current active tasks for context:
+Current active tasks:
 ${taskContext}
 
-Return ONLY valid JSON: {"memories": [{"content": "...", "category": "decision|client_info|process|preference|company|market_data|conversation_handoff", "type": "decision|preference|constraint|context_fact|pattern", "confidence": 0.0-1.0}]}`,
+Return a JSON array of NEW memories only. Each memory should have: content (the extracted fact), category (one of: client_info, decision, market_data, process, preference, company, conversation_handoff), confidence (0.0-1.0).
+Only extract genuinely useful, NEW information. If nothing new, return empty array.
+Respond ONLY with valid JSON: {"memories": [...]}`,
             },
             { role: "user", content: message_content },
           ],

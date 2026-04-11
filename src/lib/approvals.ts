@@ -121,15 +121,9 @@ export function formatTimeRemaining(ms: number): string {
 export async function requestApproval(
   request: ApprovalRequest
 ): Promise<ApprovalResult> {
-  let tier = classifyTier(request.actionType);
+  const tier = classifyTier(request.actionType);
 
-  // Evaluate conditional approval rules
-  const ruleResults = evaluateApprovalRules(request.actionType, request.actionDescription);
-  if (ruleResults.escalateTier && tier < 3) tier = 3 as ApprovalTier;
-  if (ruleResults.requireBothFounders && tier < 2) tier = 2 as ApprovalTier;
-  // Note: additionalReviewers stored in audit log for visibility
-
-  // Tier 1: Auto-approve immediately (only if rules didn't escalate)
+  // Tier 1: Auto-approve immediately
   if (tier === 1) {
     const profileId = await getCurrentProfileId();
     const { data, error } = await supabase
@@ -332,120 +326,4 @@ export async function executeApprovedAction(
     `[Approvals] Executing approved action: ${approval.action_type}`,
     approval.action_payload
   );
-}
-
-// ─── Conditional Approval Rules Engine ──────────────────────────────────────
-
-/**
- * Approval rules — evaluated before any approval is created.
- * If a rule matches, it can: escalate tier, require both founders, or add a reviewer.
- *
- * Rules stored in localStorage (will migrate to settings table).
- */
-
-export interface ApprovalRule {
-  id: string;
-  name: string;
-  condition: {
-    type: "action_type" | "keyword" | "amount";
-    value: string; // action type, keyword, or amount threshold
-  };
-  effect: {
-    type: "escalate_tier" | "require_both_founders" | "add_reviewer";
-    value?: string; // reviewer agent name for add_reviewer
-  };
-  isActive: boolean;
-}
-
-const RULES_KEY = "layaa_approval_rules";
-
-// Default rules
-const DEFAULT_RULES: ApprovalRule[] = [
-  {
-    id: "rule-financial",
-    name: "Financial actions require both founders",
-    condition: { type: "keyword", value: "payment|invoice|transfer|billing|financial" },
-    effect: { type: "require_both_founders" },
-    isActive: true,
-  },
-  {
-    id: "rule-client-email",
-    name: "Client-facing emails need brand review",
-    condition: { type: "action_type", value: "send_email" },
-    effect: { type: "add_reviewer", value: "tara" },
-    isActive: true,
-  },
-  {
-    id: "rule-delete",
-    name: "Deletions always escalate to Tier 3",
-    condition: { type: "action_type", value: "delete" },
-    effect: { type: "escalate_tier" },
-    isActive: true,
-  },
-];
-
-export function getApprovalRules(): ApprovalRule[] {
-  try {
-    const stored = localStorage.getItem(RULES_KEY);
-    return stored ? JSON.parse(stored) : DEFAULT_RULES;
-  } catch { return DEFAULT_RULES; }
-}
-
-export function saveApprovalRules(rules: ApprovalRule[]): void {
-  localStorage.setItem(RULES_KEY, JSON.stringify(rules));
-}
-
-/**
- * Evaluate rules against a pending action.
- * Returns modifications to apply to the approval (escalated tier, additional reviewers).
- */
-export function evaluateApprovalRules(
-  actionType: string,
-  actionDescription: string
-): {
-  escalateTier: boolean;
-  requireBothFounders: boolean;
-  additionalReviewers: string[];
-} {
-  const rules = getApprovalRules().filter(r => r.isActive);
-  let escalateTier = false;
-  let requireBothFounders = false;
-  const additionalReviewers: string[] = [];
-
-  for (const rule of rules) {
-    let matches = false;
-
-    switch (rule.condition.type) {
-      case "action_type":
-        matches = actionType.toLowerCase().includes(rule.condition.value.toLowerCase());
-        break;
-      case "keyword": {
-        const keywords = rule.condition.value.split("|").map(k => k.trim().toLowerCase());
-        const text = `${actionType} ${actionDescription}`.toLowerCase();
-        matches = keywords.some(kw => text.includes(kw));
-        break;
-      }
-      case "amount": {
-        const threshold = parseFloat(rule.condition.value);
-        const amountMatch = actionDescription.match(/[\$₹€£]?\s*([\d,]+(?:\.\d+)?)/);
-        if (amountMatch) {
-          const amount = parseFloat(amountMatch[1].replace(/,/g, ""));
-          matches = amount > threshold;
-        }
-        break;
-      }
-    }
-
-    if (matches) {
-      switch (rule.effect.type) {
-        case "escalate_tier": escalateTier = true; break;
-        case "require_both_founders": requireBothFounders = true; break;
-        case "add_reviewer":
-          if (rule.effect.value) additionalReviewers.push(rule.effect.value);
-          break;
-      }
-    }
-  }
-
-  return { escalateTier, requireBothFounders, additionalReviewers };
 }

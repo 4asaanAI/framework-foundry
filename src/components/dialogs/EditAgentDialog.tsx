@@ -179,7 +179,7 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
             </div>
             <div className="border-t border-border pt-3 mt-2">
               <p className="text-xs font-semibold text-foreground mb-2">Custom LLM Configuration (Optional)</p>
-              <p className="text-xs text-muted-foreground mb-3">Leave blank to use the platform's default AI. Set a custom API key to use your own LLM provider.</p>
+              <p className="text-[10px] text-muted-foreground mb-3">Leave blank to use the platform's default AI. Set a custom API key to use your own LLM provider.</p>
               <div className="space-y-3">
                 <div>
                   <Label className="text-xs">Custom API Key</Label>
@@ -188,7 +188,7 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
                 <div>
                   <Label className="text-xs">Custom API Base URL</Label>
                   <Input value={customApiBaseUrl} onChange={(e) => setCustomApiBaseUrl(e.target.value)} placeholder="https://api.openai.com/v1/chat/completions" />
-                  <p className="text-xs text-muted-foreground mt-1">Must be OpenAI-compatible endpoint. Leave blank to use Lovable AI gateway.</p>
+                  <p className="text-[9px] text-muted-foreground mt-1">Must be OpenAI-compatible endpoint. Leave blank to use Lovable AI gateway.</p>
                 </div>
               </div>
             </div>
@@ -216,11 +216,11 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
                   <div key={i} className="p-3 rounded-lg bg-card border border-border">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-foreground">v{entry.version}</span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[10px] text-muted-foreground">
                         {new Date(entry.updated_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                       </span>
                     </div>
-                    <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap max-h-[100px] overflow-y-auto">{entry.prompt}</pre>
+                    <pre className="text-[10px] text-muted-foreground font-mono whitespace-pre-wrap max-h-[100px] overflow-y-auto">{entry.prompt}</pre>
                     <Button
                       size="sm"
                       variant="outline"

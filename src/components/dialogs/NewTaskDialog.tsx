@@ -10,7 +10,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAgents } from "@/hooks/use-agents";
 import { MOCK_AGENTS } from "@/constants/agents";
 import { toast } from "sonner";
-import { serializeTaskMeta, PRIORITY_CONFIG, TASK_TEMPLATES, type TaskPriority, type TaskMeta } from "@/lib/tasks";
 
 interface Props {
   open: boolean;
@@ -22,8 +21,6 @@ export function NewTaskDialog({ open, onOpenChange }: Props) {
   const [description, setDescription] = useState("");
   const [agentId, setAgentId] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [priority, setPriority] = useState<TaskPriority>("P2");
-  const [dealValue, setDealValue] = useState("");
   const [loading, setLoading] = useState(false);
   const qc = useQueryClient();
   const { data: dbAgents } = useAgents();
@@ -38,15 +35,9 @@ export function NewTaskDialog({ open, onOpenChange }: Props) {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const meta: TaskMeta = {
-        priority,
-        subtasks: [],
-        dealValue: dealValue ? parseFloat(dealValue) : undefined,
-      };
-      const fullDescription = serializeTaskMeta(meta, description.trim());
       const { error } = await supabase.from("tasks").insert({
         title: title.trim(),
-        description: fullDescription,
+        description: description.trim(),
         assigned_agent_id: agentId,
         created_by_profile: user?.id,
         due_date: dueDate || null,
@@ -97,35 +88,6 @@ export function NewTaskDialog({ open, onOpenChange }: Props) {
           <div className="space-y-2">
             <Label>Due Date (optional)</Label>
             <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Priority</Label>
-              <Select value={priority} onValueChange={(v) => setPriority(v as TaskPriority)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {(Object.entries(PRIORITY_CONFIG) as [TaskPriority, any][]).map(([key, cfg]) => (
-                    <SelectItem key={key} value={key}>{key} — {cfg.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Deal Value ₹ (optional)</Label>
-              <Input type="number" value={dealValue} onChange={(e) => setDealValue(e.target.value)} placeholder="0" />
-            </div>
-          </div>
-          {/* Template quick-fill */}
-          <div>
-            <Label className="mb-1.5 block">Quick template (optional)</Label>
-            <div className="flex gap-1 flex-wrap">
-              {TASK_TEMPLATES.map(t => (
-                <button key={t.id} onClick={() => { setTitle(t.defaultTitle); setDescription(t.defaultDescription); setPriority(t.defaultPriority); if (t.suggestedAgent) setAgentId(t.suggestedAgent); }}
-                  className="px-2 py-1 rounded-lg border border-border text-xs text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all duration-200">
-                  {t.name}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
         <DialogFooter>

@@ -43,9 +43,6 @@ interface SidebarProps {
   activeView: string;
   onViewChange: (view: string) => void;
   onAgentClick?: (agentId: string) => void;
-  selectedAgentId?: string | null;
-  mobileOpen?: boolean;
-  onMobileClose?: () => void;
 }
 
 const NAV_ITEMS = [
@@ -55,14 +52,15 @@ const NAV_ITEMS = [
   { id: "projects", label: "Projects", icon: FolderKanban },
   { id: "tasks", label: "Tasks", icon: CheckSquare },
   { id: "crm", label: "CRM Board", icon: Kanban },
-  { id: "insights", label: "Dashboard & Analytics", icon: LayoutDashboard },
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "approvals", label: "Approvals", icon: Shield },
   { id: "messages", label: "Messages", icon: Mail },
   { id: "customize", label: "Customize", icon: Blocks },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
-function ChatHistoryItem({ conv, agents, onSelect, isActive }: { conv: any; agents: any[]; onSelect: () => void; isActive: boolean }) {
+function ChatHistoryItem({ conv, agents, onSelect }: { conv: any; agents: any[]; onSelect: () => void }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(conv.title);
@@ -104,7 +102,7 @@ function ChatHistoryItem({ conv, agents, onSelect, isActive }: { conv: any; agen
   };
 
   return (
-    <div className={cn("group flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-colors cursor-pointer", isActive ? "bg-primary/5 border border-primary/20" : "hover:bg-card/80")} onClick={onSelect}>
+    <div className="group flex items-center gap-1.5 px-2 py-1.5 rounded-lg hover:bg-card/80 transition-colors cursor-pointer" onClick={onSelect}>
       {conv.is_starred && <Star className="h-3 w-3 text-warning shrink-0 fill-warning" />}
       {conv.branch_parent_id && <GitBranch className="h-3 w-3 text-muted-foreground shrink-0" />}
       {renaming ? (
@@ -114,15 +112,15 @@ function ChatHistoryItem({ conv, agents, onSelect, isActive }: { conv: any; agen
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleRename(); if (e.key === "Escape") setRenaming(false); }}
-            className="flex-1 bg-background border border-border rounded px-1.5 py-0.5 text-xs text-foreground outline-none focus:border-primary"
+            className="flex-1 bg-background border border-border rounded px-1.5 py-0.5 text-[11px] text-foreground outline-none focus:border-primary"
           />
           <button onClick={() => setRenaming(false)} className="p-0.5 text-muted-foreground"><X className="h-3 w-3" /></button>
         </div>
       ) : (
         <div className="flex-1 min-w-0">
-          <div className="text-xs truncate text-foreground">{conv.branch_parent_id ? `↳ ${conv.title}` : conv.title}</div>
+          <div className="text-[11px] truncate text-foreground">{conv.branch_parent_id ? `↳ ${conv.title}` : conv.title}</div>
           {agent && (
-            <div className="text-xs text-muted-foreground truncate">{agent.name}</div>
+            <div className="text-[9px] text-muted-foreground truncate">{agent.name}</div>
           )}
         </div>
       )}
@@ -135,14 +133,14 @@ function ChatHistoryItem({ conv, agents, onSelect, isActive }: { conv: any; agen
           </PopoverTrigger>
           <PopoverContent className="w-36 p-1" align="end">
             <button onClick={() => { setRenaming(true); setRenameValue(conv.title); setMenuOpen(false); }}
-              className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs text-foreground hover:bg-muted transition-all duration-200">
+              className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] text-foreground hover:bg-muted transition-colors">
               <Pencil className="h-3 w-3" /> Rename
             </button>
-            <button onClick={handleStar} className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs text-foreground hover:bg-muted transition-all duration-200">
+            <button onClick={handleStar} className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] text-foreground hover:bg-muted transition-colors">
               {conv.is_starred ? <StarOff className="h-3 w-3" /> : <Star className="h-3 w-3" />}
               {conv.is_starred ? "Unpin" : "Pin to top"}
             </button>
-            <button onClick={handleDelete} className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs text-destructive hover:bg-destructive/10 transition-all duration-200">
+            <button onClick={handleDelete} className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-[11px] text-destructive hover:bg-destructive/10 transition-colors">
               <Trash2 className="h-3 w-3" /> Delete
             </button>
           </PopoverContent>
@@ -152,7 +150,7 @@ function ChatHistoryItem({ conv, agents, onSelect, isActive }: { conv: any; agen
   );
 }
 
-function ChatHistorySection({ onAgentClick, onViewChange, selectedAgentId, activeView }: { onAgentClick?: (agentId: string) => void; onViewChange: (view: string) => void; selectedAgentId?: string | null; activeView: string }) {
+function ChatHistorySection({ onAgentClick, onViewChange }: { onAgentClick?: (agentId: string) => void; onViewChange: (view: string) => void }) {
   const [expanded, setExpanded] = useState(true);
   const { data: conversations } = useConversations();
   const { data: dbAgents } = useAgents();
@@ -168,22 +166,22 @@ function ChatHistorySection({ onAgentClick, onViewChange, selectedAgentId, activ
     <div className="mt-2">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-1.5 w-full px-3 py-1.5 rounded text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-all duration-200"
+        className="flex items-center gap-1.5 w-full px-3 py-1.5 rounded text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
       >
         {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         <History className="h-3 w-3" />
         Chat History
-        {sorted.length > 0 && <span className="ml-auto text-xs opacity-60">{sorted.length}</span>}
+        {sorted.length > 0 && <span className="ml-auto text-[9px] opacity-60">{sorted.length}</span>}
       </button>
       {expanded && (
         <div className="mt-1 space-y-0.5 px-1">
           {sorted.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-muted-foreground italic">
+            <div className="px-3 py-2 text-[10px] text-muted-foreground italic">
               No conversations yet
             </div>
           ) : (
             sorted.map((conv: any) => (
-              <ChatHistoryItem key={conv.id} conv={conv} agents={agents} isActive={activeView === "chat" && conv.agent_id === selectedAgentId && !conv.branch_parent_id} onSelect={() => {
+              <ChatHistoryItem key={conv.id} conv={conv} agents={agents} onSelect={() => {
                 if (onAgentClick) onAgentClick(conv.agent_id);
                 onViewChange("chat");
               }} />
@@ -200,13 +198,13 @@ function ProfileFooter() {
   const [showEdit, setShowEdit] = useState(false);
   return (
     <div className="p-3 border-t border-border flex items-center gap-2">
-      <button onClick={() => setShowEdit(true)} className="flex items-center gap-2 flex-1 hover:bg-card rounded-lg p-1 transition-all duration-200">
-        <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-primary text-xs font-bold bg-primary/20">
-          {profile?.avatar ? <img src={profile.avatar} alt="" className="w-full h-full object-cover" /> : (profile?.initials ?? "U")}
+      <button onClick={() => setShowEdit(true)} className="flex items-center gap-2 flex-1 hover:bg-card rounded-lg p-1 transition-colors">
+        <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-primary text-[10px] font-bold">
+          {profile?.initials ?? "U"}
         </div>
         <span className="text-xs truncate">{profile?.name ?? "User"}</span>
       </button>
-      <button onClick={signOut} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all duration-200" title="Sign out">
+      <button onClick={signOut} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Sign out">
         <LogOut className="h-4 w-4" />
       </button>
       {showEdit && <EditProfileDialog open={showEdit} onOpenChange={setShowEdit} />}
@@ -214,7 +212,7 @@ function ProfileFooter() {
   );
 }
 
-export function AppSidebar({ activeView, onViewChange, onAgentClick, selectedAgentId, mobileOpen, onMobileClose }: SidebarProps) {
+export function AppSidebar({ activeView, onViewChange, onAgentClick }: SidebarProps) {
   const { data: dbAgents } = useAgents();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -235,33 +233,19 @@ export function AppSidebar({ activeView, onViewChange, onAgentClick, selectedAge
     setShowNewConversation(true);
   }, []);
 
-  const handleNavClick = (view: string) => {
-    onViewChange(view);
-    if (onMobileClose) onMobileClose();
-  };
-
-  const handleAgentSelect = (agentId: string) => {
-    if (onAgentClick) onAgentClick(agentId);
-    handleNavClick("chat");
-  };
-
   return (
-    <>
-      {/* Mobile overlay backdrop */}
-      {mobileOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={onMobileClose} />
-      )}
-    <aside className={cn(
-      "w-64 sm:w-56 bg-sidebar border-r border-border flex flex-col h-full",
-      "fixed lg:relative z-50 lg:z-auto",
-      "transition-transform duration-300 ease-out",
-      mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-    )}>
+    <aside className="w-56 bg-sidebar border-r border-border flex flex-col h-full">
+      {/* Logo / brand */}
+      <div className="p-4 flex items-center gap-2 border-b border-border">
+        <span className="text-lg font-bold tracking-tight text-foreground">Layaa</span>
+        <span className="text-[10px] text-muted-foreground font-mono">OS</span>
+      </div>
+
       {/* New Conversation button */}
       <div className="px-3 pt-3 pb-1">
         <button
           onClick={handleNewConversation}
-          className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-all duration-200 shadow-sm hover:shadow"
+          className="flex items-center gap-2 w-full px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors"
         >
           <Plus className="h-3.5 w-3.5" />
           New Conversation
@@ -269,16 +253,16 @@ export function AppSidebar({ activeView, onViewChange, onAgentClick, selectedAge
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
+      <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
         {NAV_ITEMS.map((item) => (
           <button
             key={item.id}
-            onClick={() => handleNavClick(item.id)}
+            onClick={() => onViewChange(item.id)}
             className={cn(
-              "flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200",
-              (activeView === item.id || (item.id === "insights" && (activeView === "dashboard" || activeView === "analytics")))
-                ? "bg-primary/10 text-primary shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-card/60"
+              "flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-xs font-medium transition-colors",
+              activeView === item.id
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:text-foreground hover:bg-card/50"
             )}
           >
             <item.icon className="h-4 w-4 shrink-0" />
@@ -287,7 +271,7 @@ export function AppSidebar({ activeView, onViewChange, onAgentClick, selectedAge
         ))}
 
         {/* Chat History */}
-        <ChatHistorySection onAgentClick={onAgentClick} onViewChange={onViewChange} selectedAgentId={selectedAgentId} activeView={activeView} />
+        <ChatHistorySection onAgentClick={onAgentClick} onViewChange={onViewChange} />
       </nav>
 
       {/* Profile footer */}
@@ -303,6 +287,5 @@ export function AppSidebar({ activeView, onViewChange, onAgentClick, selectedAge
         }}
       />
     </aside>
-    </>
   );
 }

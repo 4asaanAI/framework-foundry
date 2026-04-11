@@ -9,12 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Plus, Pencil, Check, X } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 
-const MEMORY_CATEGORIES = ["decision", "preference", "process", "company", "client_info", "market_data", "conversation_handoff"];
-const CATEGORY_LABELS: Record<string, string> = {
-  decision: "Decision", preference: "Preference", process: "Process / Constraint",
-  company: "Company Context", client_info: "Client Info", market_data: "Market Data",
-  conversation_handoff: "Handoff Note",
-};
+const MEMORY_CATEGORIES = ["client_info", "decision", "market_data", "process", "preference", "company", "conversation_handoff"];
 
 interface AgentMemoryPanelProps {
   agentId: string;
@@ -103,7 +98,7 @@ export function AgentMemoryPanel({ agentId }: AgentMemoryPanelProps) {
             className="px-2 py-1.5 rounded-md bg-card border border-border text-xs text-foreground"
           >
             {MEMORY_CATEGORIES.map((c) => (
-              <option key={c} value={c}>{CATEGORY_LABELS[c] || c.replace(/_/g, " ")}</option>
+              <option key={c} value={c}>{c.replace(/_/g, " ")}</option>
             ))}
           </select>
           <div className="flex items-center gap-1 text-xs text-muted-foreground min-w-[100px]">
@@ -181,16 +176,16 @@ export function AgentMemoryPanel({ agentId }: AgentMemoryPanelProps) {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-foreground">{mem.content}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs px-1.5 py-0.5 rounded bg-background text-muted-foreground">
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-background text-muted-foreground">
                       {mem.category}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[9px] text-muted-foreground">
                       conf: {Math.round(mem.confidence * 100)}%
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[9px] text-muted-foreground">
                       {mem.memory_type}
                     </span>
-                    <span className="text-xs text-muted-foreground ml-auto">
+                    <span className="text-[9px] text-muted-foreground ml-auto">
                       {new Date(mem.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                     </span>
                   </div>

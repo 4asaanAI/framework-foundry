@@ -118,34 +118,6 @@ export async function onAgentDelegation(_data: {
   }
 }
 
-/**
- * Send a cross-admin notification on behalf of an agent.
- * This creates a notification entry in Supabase that the target admin
- * will see in the notification bell icon. Clicking it opens the agent's chat.
- */
-export async function sendCrossAdminNotification(params: {
-  sourceAgentId: string;
-  sourceAgentName: string;
-  targetProfileId: string;
-  title: string;
-  body: string;
-  category?: string;
-}): Promise<void> {
-  try {
-    const { supabase } = await import("@/integrations/supabase/client");
-    await supabase.from("notifications").insert({
-      source_agent_id: params.sourceAgentId,
-      profile_id: params.targetProfileId,
-      title: params.title,
-      body: `[From ${params.sourceAgentName}] ${params.body}`,
-      category: params.category || "system",
-      is_read: false,
-    });
-  } catch (e) {
-    console.error("[Webhooks] Cross-admin notification failed:", e);
-  }
-}
-
 export function getWebhookStatus() {
   return {
     sageLive: !!WEBHOOK_URLS.SAGE_EXTRACTION,

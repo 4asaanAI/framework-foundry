@@ -7,8 +7,6 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { PROJECT_TEMPLATES } from "@/lib/projects";
-import { cn } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -58,19 +56,6 @@ export function NewProjectDialog({ open, onOpenChange }: Props) {
           <DialogTitle>New Project</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          {/* Template selector */}
-          <div>
-            <Label className="mb-2 block">Start from template (optional)</Label>
-            <div className="grid grid-cols-2 gap-2">
-              {PROJECT_TEMPLATES.map(t => (
-                <button key={t.id} onClick={() => { setName(t.name); setDescription(t.description); setInstructions(t.instructions); }}
-                  className={cn("p-2 rounded-xl border text-left transition-all duration-200 hover:border-primary/30", name === t.name ? "border-primary bg-primary/5" : "border-border")}>
-                  <p className="text-xs font-medium text-foreground">{t.name}</p>
-                  <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{t.description}</p>
-                </button>
-              ))}
-            </div>
-          </div>
           <div className="space-y-2">
             <Label>Name</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. EduFlow" />

@@ -44,11 +44,11 @@ export function AgentsView() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="px-3 sm:px-6 py-4 sm:py-5 border-b border-border bg-background">
+      <div className="px-6 py-5 border-b border-border">
         <h1 className="text-lg font-semibold text-foreground">Agents</h1>
         <p className="text-sm text-muted-foreground mt-0.5">{displayAgents.length} agents across {teams.length} teams</p>
       </div>
-      <div className="px-3 sm:px-6 py-4 space-y-4 sm:space-y-6">
+      <div className="px-6 py-4 space-y-6">
         {teams.map((team) => {
           const teamAgents = displayAgents.filter((a) => a.team === team);
           return (
@@ -88,10 +88,10 @@ export function AgentsView() {
                       {/* Dynamic token meter */}
                       <div className="mt-3">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-muted-foreground">
+                          <span className="text-[10px] text-muted-foreground">
                             {agent.budget_used.toLocaleString()} / {total.toLocaleString()} tokens
                           </span>
-                          <span className={cn("text-xs font-mono font-medium",
+                          <span className={cn("text-[10px] font-mono font-medium",
                             budgetPct > 90 ? "text-destructive" : budgetPct > 70 ? "text-warning" : "text-success"
                           )}>
                             {remaining.toLocaleString()} left
@@ -103,13 +103,13 @@ export function AgentsView() {
                           )} style={{ width: `${Math.min(budgetPct, 100)}%` }} />
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
                         <span className="flex items-center gap-1"><Zap className="h-3 w-3" />{agent.llm_provider}</span>
                         <span className="flex items-center gap-1"><TrendingUp className="h-3 w-3" />v{agent.prompt_version}</span>
                         {agent.budget_loaned > 0 && <span className="text-warning">+{agent.budget_loaned.toLocaleString()} loaned</span>}
                         <button
                           onClick={(e) => { e.stopPropagation(); setTransferAgent(agent as AgentRow); }}
-                          className="ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted hover:bg-primary/10 hover:text-primary transition-all duration-200"
+                          className="ml-auto flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted hover:bg-primary/10 hover:text-primary transition-colors"
                           title="Transfer tokens">
                           <ArrowRightLeft className="h-3 w-3" /> Transfer
                         </button>

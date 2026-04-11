@@ -225,246 +225,6 @@ Format: Clear bullet points. Assume ${ctx.delegatingAgentName} will use your res
   };
 }
 
-// ─── Delegation Reasoning ───────────────────────────────────────────────────
-
-/**
- * Generate a human-readable reason for why a specific agent was chosen.
- */
-export function generateDelegationReason(
-  task: string,
-  targetAgentId: string,
-  targetAgentName: string,
-  matchType: "explicit_request" | "auto_detected"
-): { reason: string; confidence: number } {
-  const taskLower = task.toLowerCase();
-  const keywords = DELEGATION_MAP[targetAgentId] || DELEGATION_MAP[targetAgentName.toLowerCase()] || [];
-  const matched = keywords.filter(kw => taskLower.includes(kw.toLowerCase()));
-
-  if (matchType === "explicit_request") {
-    return { reason: `You explicitly mentioned @${targetAgentName}.`, confidence: 1.0 };
-  }
-
-  if (matched.length > 0) {
-    return {
-      reason: `Delegating to ${targetAgentName} because this involves ${matched.slice(0, 3).join(", ")} — their area of expertise.`,
-      confidence: 0.7 + (matched.length * 0.05),
-    };
-  }
-
-  return { reason: `${targetAgentName} is the best role match for this task.`, confidence: 0.6 };
-}
-
-// ─── Multi-Turn Delegation ──────────────────────────────────────────────────
-
-const MAX_DELEGATION_TURNS = 5;
-
-/**
- * Execute a multi-turn delegation. Agent A sends task, Agent B responds,
- * A evaluates and may follow up — up to MAX_DELEGATION_TURNS rounds.
- * The conversation happens in the delegated conversation visible in split screen.
- */
-export async function executeMultiTurnDelegation(ctx: DelegationContext): Promise<DelegationOutput> {
-  // Create delegated conversation
-  const { data: newConv } = await supabase.from("conversations")
-    .insert({ agent_id: ctx.targetAgentId, profile_id: ctx.userId, title: `${ctx.delegatingAgentName} → ${ctx.targetAgentName}: ${ctx.task.slice(0, 50)}` })
-    .select("id").single();
-
-  if (!newConv) throw new Error("Failed to create delegation conversation");
-  const delegatedConversationId = newConv.id;
-
-  // Initial message
-  await supabase.from("messages").insert({
-    conversation_id: delegatedConversationId, role: "user" as const,
-    content: `${ctx.delegatingAgentName} asks: ${ctx.task}`, model: ctx.model,
-  });
-
-  let lastResponse = "";
-
-  for (let turn = 0; turn < MAX_DELEGATION_TURNS; turn++) {
-    // Get delegated agent response
-    const response = await callLLM(
-      [{ role: "user", content: turn === 0 ? ctx.task : `${ctx.delegatingAgentName}: Please elaborate further.` }],
-      ctx.model, ctx.provider, ctx.apiKey
-    );
-
-    await supabase.from("messages").insert({
-      conversation_id: delegatedConversationId, role: "agent" as const,
-      content: response, model: ctx.model,
-    });
-
-    lastResponse = response;
-
-    // Stop if response is complete (doesn't end with question, is substantial)
-    if (!response.endsWith("?") && response.length > 100) break;
-
-    // Follow up if more turns available
-    if (turn < MAX_DELEGATION_TURNS - 1) {
-      await supabase.from("messages").insert({
-        conversation_id: delegatedConversationId, role: "user" as const,
-        content: `${ctx.delegatingAgentName}: Can you provide more specific actionable details?`, model: ctx.model,
-      });
-    }
-  }
-
-  onAgentDelegation({
-    fromAgentId: ctx.delegatingAgentId, toAgentId: ctx.targetAgentId,
-    conversationId: ctx.mainConversationId, delegatedConversationId,
-    task: ctx.task, reason: ctx.reason,
-  }).catch(console.error);
-
-  return { delegatedConversationId, delegatedResponse: lastResponse, splitScreenVisible: true };
-}
-
-// ─── Chain Workflows ────────────────────────────────────────────────────────
-
-export interface ChainStep {
-  agentId: string;
-  agentName: string;
-  instruction: string;
-  status: "pending" | "running" | "completed" | "failed" | "awaiting_approval";
-  output?: string;
-}
-
-export interface AgentChain {
-  id: string;
-  name: string;
-  steps: ChainStep[];
-  status: "pending" | "running" | "completed" | "failed";
-  originalPrompt: string;
-}
-
-const CHAINS_KEY = "layaa_agent_chains";
-
-export function getChains(): AgentChain[] {
-  try { return JSON.parse(localStorage.getItem(CHAINS_KEY) || "[]"); } catch { return []; }
-}
-
-function saveChains(chains: AgentChain[]): void {
-  localStorage.setItem(CHAINS_KEY, JSON.stringify(chains));
-}
-
-export function createChain(name: string, steps: { agentId: string; agentName: string; instruction: string }[], originalPrompt: string): AgentChain {
-  const chain: AgentChain = {
-    id: `chain-${Date.now()}`, name,
-    steps: steps.map(s => ({ ...s, status: "pending" as const })),
-    status: "pending", originalPrompt,
-  };
-  const chains = getChains();
-  chains.unshift(chain);
-  saveChains(chains);
-  return chain;
-}
-
-export function deleteChain(chainId: string): void {
-  saveChains(getChains().filter(c => c.id !== chainId));
-}
-
-/**
- * Build a handoff summary for the next agent in a chain.
- * Instead of passing the full output, summarizes: context, what was done, what the next agent needs to do.
- */
-function buildChainHandoff(
-  previousAgentName: string,
-  previousOutput: string,
-  nextInstruction: string,
-  originalPrompt: string
-): string {
-  // Extract key points from previous output (first 3 bullet points or sentences)
-  const lines = previousOutput.split("\n").filter(l => l.trim().length > 10);
-  const keyPoints = lines
-    .filter(l => l.startsWith("-") || l.startsWith("*") || l.startsWith("•") || /^\d+\./.test(l.trim()) || lines.indexOf(l) < 3)
-    .slice(0, 5)
-    .map(l => l.trim())
-    .join("\n");
-
-  return `**Context:** A user originally asked: "${originalPrompt.slice(0, 200)}"
-
-**Previous step:** ${previousAgentName} worked on this and produced the following key points:
-${keyPoints || previousOutput.slice(0, 500)}
-
-**Your task:** ${nextInstruction}
-
-**What's expected from you:** Deliver a clear, actionable output that builds on the previous step. Focus on your specific expertise area.`;
-}
-
-/**
- * Execute a chain workflow step by step.
- * Each agent receives a summarized handoff from the previous step — not the full raw output.
- * Final step always routes to approval.
- */
-export async function executeChain(
-  chainId: string,
-  userId: string,
-  model: string,
-  provider: string,
-  apiKey: string,
-  onStepComplete?: (stepIndex: number, output: string) => void
-): Promise<AgentChain> {
-  const chains = getChains();
-  const chain = chains.find(c => c.id === chainId);
-  if (!chain) throw new Error("Chain not found");
-
-  chain.status = "running";
-  saveChains(chains);
-
-  let previousOutput = chain.originalPrompt;
-  let previousAgentName = "User";
-
-  for (let i = 0; i < chain.steps.length; i++) {
-    const step = chain.steps[i];
-    const isFinalStep = i === chain.steps.length - 1;
-
-    step.status = "running";
-    saveChains(chains);
-
-    // Final step always routes to approval
-    if (isFinalStep) {
-      step.status = "awaiting_approval";
-      saveChains(chains);
-      await supabase.from("approvals").insert({
-        requesting_agent_id: step.agentId,
-        profile_id: userId,
-        action_type: "chain_final_step",
-        action_description: `Final step of chain "${chain.name}": ${step.agentName} will process the summarized output from ${i} previous step(s).`,
-        status: "pending",
-      });
-      break;
-    }
-
-    try {
-      // Build summarized handoff (not full output)
-      const handoff = i === 0
-        ? step.instruction + "\n\nOriginal request: " + chain.originalPrompt
-        : buildChainHandoff(previousAgentName, previousOutput, step.instruction, chain.originalPrompt);
-
-      const response = await callLLM(
-        [{ role: "user", content: handoff }],
-        model, provider, apiKey
-      );
-
-      step.output = response;
-      step.status = "completed";
-      previousOutput = response;
-      previousAgentName = step.agentName;
-      saveChains(chains);
-
-      if (onStepComplete) onStepComplete(i, response);
-    } catch {
-      step.status = "failed";
-      chain.status = "failed";
-      saveChains(chains);
-      break;
-    }
-  }
-
-  if (chain.steps.every(s => s.status === "completed")) {
-    chain.status = "completed";
-    saveChains(chains);
-  }
-
-  return chain;
-}
-
 /**
  * After delegation, Kaiser synthesizes the final answer incorporating
  * the delegated agent's response.
@@ -494,4 +254,69 @@ At the end, add a footnote: "Consulted with ${params.targetAgentName} for this a
     params.provider,
     params.apiKey
   );
+}
+
+// ─── Agent Chain Types & CRUD ───
+
+export interface AgentChain {
+  id: string;
+  name: string;
+  steps: { agent_id: string; instruction: string }[];
+  created_by: string;
+  created_at: string;
+}
+
+export async function createChain(
+  name: string,
+  steps: { agent_id: string; instruction: string }[],
+  userId: string
+): Promise<AgentChain> {
+  const { data, error } = await supabase
+    .from("settings")
+    .insert({
+      key: `chain:${crypto.randomUUID()}`,
+      value: JSON.stringify({ name, steps, created_by: userId }),
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  const parsed = JSON.parse(data.value);
+  return { id: data.id, name: parsed.name, steps: parsed.steps, created_by: parsed.created_by, created_at: data.created_at };
+}
+
+export async function getChains(): Promise<AgentChain[]> {
+  const { data, error } = await supabase
+    .from("settings")
+    .select("*")
+    .like("key", "chain:%");
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    const parsed = JSON.parse(row.value);
+    return { id: row.id, name: parsed.name, steps: parsed.steps, created_by: parsed.created_by, created_at: row.created_at };
+  });
+}
+
+export async function deleteChain(chainId: string): Promise<void> {
+  const { error } = await supabase.from("settings").delete().eq("id", chainId);
+  if (error) throw error;
+}
+
+export async function executeChain(
+  chain: AgentChain,
+  initialInput: string,
+  _opts?: { model?: string; provider?: string }
+): Promise<string[]> {
+  const results: string[] = [];
+  let currentInput = initialInput;
+  for (const step of chain.steps) {
+    const result = await callLLM(
+      [{ role: "user", content: `${step.instruction}\n\nContext:\n${currentInput}` }],
+      _opts?.model ?? "gpt-4o-mini",
+      _opts?.provider ?? "openai",
+      ""
+    );
+    results.push(result);
+    currentInput = result;
+  }
+  return results;
 }
