@@ -5,10 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Trash2, Plus, Brain, FileText, History, Database } from "lucide-react";
+import { Trash2, Plus, Brain, FileText, History, Database, Clock, CalendarClock } from "lucide-react";
 import { AgentKBTab } from "@/components/dialogs/AgentKBTab";
 import { AgentMemoryPanel } from "@/components/dialogs/AgentMemoryPanel";
 import type { AgentRow } from "@/hooks/use-agents";
@@ -32,6 +34,12 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
   const [newMemoryCategory, setNewMemoryCategory] = useState("preference");
   const [customApiKey, setCustomApiKey] = useState("");
   const [customApiBaseUrl, setCustomApiBaseUrl] = useState("");
+  // Schedule state
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduleFreq, setScheduleFreq] = useState<"daily" | "weekly" | "monthly">("weekly");
+  const [scheduleDay, setScheduleDay] = useState("1"); // 0=Sun, 1=Mon,...
+  const [scheduleTime, setScheduleTime] = useState("09:00");
+  const [schedulePrompt, setSchedulePrompt] = useState("");
 
   const resetForm = (a: AgentRow) => {
     setName(a.name);
@@ -42,6 +50,24 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
     setBudgetTokens(a.budget_tokens);
     setCustomApiKey((a as any).custom_api_key || "");
     setCustomApiBaseUrl((a as any).custom_api_base_url || "");
+    // Load schedule from localStorage
+    const saved = localStorage.getItem(`agent_schedule_${a.id}`);
+    if (saved) {
+      try {
+        const s = JSON.parse(saved);
+        setScheduleEnabled(s.enabled ?? false);
+        setScheduleFreq(s.frequency ?? "weekly");
+        setScheduleDay(s.day ?? "1");
+        setScheduleTime(s.time ?? "09:00");
+        setSchedulePrompt(s.prompt ?? "");
+      } catch { /* ignore */ }
+    } else {
+      setScheduleEnabled(false);
+      setScheduleFreq("weekly");
+      setScheduleDay("1");
+      setScheduleTime("09:00");
+      setSchedulePrompt("");
+    }
   };
 
   useEffect(() => {
@@ -99,6 +125,16 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
     if (error) {
       toast.error(error.message);
     } else {
+      // Save schedule to localStorage
+      if (agent) {
+        localStorage.setItem(`agent_schedule_${agent.id}`, JSON.stringify({
+          enabled: scheduleEnabled,
+          frequency: scheduleFreq,
+          day: scheduleDay,
+          time: scheduleTime,
+          prompt: schedulePrompt,
+        }));
+      }
       toast.success(`${name} updated`);
       queryClient.invalidateQueries({ queryKey: ["agents"] });
       onOpenChange(false);
@@ -143,10 +179,11 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
         </DialogHeader>
 
         <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="kb" className="flex items-center gap-1"><Database className="h-3 w-3" /> KB</TabsTrigger>
             <TabsTrigger value="memory" className="flex items-center gap-1"><Brain className="h-3 w-3" /> Memory</TabsTrigger>
+            <TabsTrigger value="schedule" className="flex items-center gap-1"><CalendarClock className="h-3 w-3" /> Schedule</TabsTrigger>
             <TabsTrigger value="history" className="flex items-center gap-1"><History className="h-3 w-3" /> History</TabsTrigger>
           </TabsList>
 
@@ -204,6 +241,69 @@ export function EditAgentDialog({ open, onOpenChange, agent }: EditAgentDialogPr
 
           <TabsContent value="memory">
             {agent && <AgentMemoryPanel agentId={agent.id} />}
+          </TabsContent>
+
+          <TabsContent value="schedule" className="space-y-4 pt-2">
+            <div className="flex items-center justify-between p-3 rounded-lg border border-border">
+              <div>
+                <p className="text-sm font-medium">Scheduled Runs</p>
+                <p className="text-xs text-muted-foreground">Agent runs its prompt automatically on a schedule</p>
+              </div>
+              <Switch checked={scheduleEnabled} onCheckedChange={setScheduleEnabled} />
+            </div>
+            {scheduleEnabled && (
+              <div className="space-y-3 p-3 rounded-lg border border-border bg-card">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Frequency</Label>
+                    <Select value={scheduleFreq} onValueChange={(v) => setScheduleFreq(v as any)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="daily">Daily</SelectItem>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="monthly">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Time (IST)</Label>
+                    <Input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} />
+                  </div>
+                </div>
+                {scheduleFreq === "weekly" && (
+                  <div>
+                    <Label className="text-xs">Day of Week</Label>
+                    <Select value={scheduleDay} onValueChange={setScheduleDay}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map((d, i) => (
+                          <SelectItem key={i} value={String(i)}>{d}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {scheduleFreq === "monthly" && (
+                  <div>
+                    <Label className="text-xs">Day of Month</Label>
+                    <Input type="number" min={1} max={28} value={scheduleDay} onChange={e => setScheduleDay(e.target.value)} />
+                  </div>
+                )}
+                <div>
+                  <Label className="text-xs">Prompt to run</Label>
+                  <Textarea
+                    value={schedulePrompt}
+                    onChange={e => setSchedulePrompt(e.target.value)}
+                    placeholder={`e.g. "Review all active projects and send a summary to founders"`}
+                    rows={3}
+                    className="font-mono text-xs"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Output will be saved as a new conversation and founders will receive a notification.
+                </p>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="history" className="space-y-4 pt-2">

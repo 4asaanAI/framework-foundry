@@ -45,7 +45,19 @@ export function AnalyticsView() {
   };
 
   if (isLoading) {
-    return <div className="h-full flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+    return (
+      <div className="h-full overflow-y-auto px-3 sm:px-6 py-6 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="animate-pulse rounded-xl border border-border bg-card p-4 space-y-2">
+              <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-muted" /><div className="h-2.5 w-20 bg-muted rounded" /></div>
+              <div className="h-7 w-16 bg-muted rounded" />
+            </div>
+          ))}
+        </div>
+        <div className="animate-pulse rounded-xl border border-border bg-card p-5 h-64" />
+      </div>
+    );
   }
 
   const logs = usageSummary ?? [];
@@ -103,11 +115,27 @@ export function AnalyticsView() {
       })()
     : [];
 
+  // Trend calculation: compare current period vs previous period
+  const now = Date.now();
+  const periodMs = effectiveDays * 86400000;
+  const currentPeriodLogs = logs.filter((l: any) => now - new Date(l.created_at).getTime() < periodMs);
+  const prevPeriodLogs = logs.filter((l: any) => {
+    const age = now - new Date(l.created_at).getTime();
+    return age >= periodMs && age < periodMs * 2;
+  });
+  const currTokens = currentPeriodLogs.reduce((s: number, l: any) => s + (l.tokens_in || 0) + (l.tokens_out || 0), 0);
+  const prevTokens = prevPeriodLogs.reduce((s: number, l: any) => s + (l.tokens_in || 0) + (l.tokens_out || 0), 0);
+  const currCost = currentPeriodLogs.reduce((s: number, l: any) => s + (l.cost_usd || 0), 0);
+  const prevCost = prevPeriodLogs.reduce((s: number, l: any) => s + (l.cost_usd || 0), 0);
+  const trendPct = (curr: number, prev: number) => prev === 0 ? (curr > 0 ? 100 : 0) : Math.round(((curr - prev) / prev) * 100);
+  const tokenTrend = trendPct(currTokens, prevTokens);
+  const costTrend = trendPct(currCost, prevCost);
+
   const stats = [
-    { label: "Total Tokens Used", value: `${(totalTokens / 1000).toFixed(1)}k`, icon: Zap, color: "text-warning" },
-    { label: "Budget Used", value: `${totalBudget > 0 ? ((totalUsed / totalBudget) * 100).toFixed(1) : 0}%`, icon: TrendingUp, color: "text-primary" },
-    { label: "Est. Cost", value: `$${totalCost.toFixed(4)}`, icon: DollarSign, color: "text-success" },
-    { label: "Active Agents", value: `${agentTotals.filter((a) => a.total > 0).length}/${agents.length}`, icon: Bot, color: "text-accent" },
+    { label: "Total Tokens Used", value: `${(totalTokens / 1000).toFixed(1)}k`, icon: Zap, color: "text-warning", trend: tokenTrend },
+    { label: "Budget Used", value: `${totalBudget > 0 ? ((totalUsed / totalBudget) * 100).toFixed(1) : 0}%`, icon: TrendingUp, color: "text-primary", trend: null as number | null },
+    { label: "Est. Cost", value: `$${totalCost.toFixed(4)}`, icon: DollarSign, color: "text-success", trend: costTrend },
+    { label: "Active Agents", value: `${agentTotals.filter((a) => a.total > 0).length}/${agents.length}`, icon: Bot, color: "text-accent", trend: null as number | null },
   ];
 
   return (
@@ -149,7 +177,14 @@ export function AnalyticsView() {
                 <s.icon className={cn("h-4 w-4", s.color)} />
                 <span className="text-xs text-muted-foreground">{s.label}</span>
               </div>
-              <p className="text-2xl font-bold text-foreground font-mono">{s.value}</p>
+              <div className="flex items-end gap-2">
+                <p className="text-2xl font-bold text-foreground font-mono">{s.value}</p>
+                {s.trend !== null && s.trend !== 0 && (
+                  <span className={cn("text-xs font-medium pb-1", s.trend > 0 ? "text-success" : "text-destructive")}>
+                    {s.trend > 0 ? "↑" : "↓"}{Math.abs(s.trend)}%
+                  </span>
+                )}
+              </div>
             </div>
           ))}
         </div>

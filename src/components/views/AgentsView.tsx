@@ -36,8 +36,34 @@ export function AgentsView() {
 
   if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="h-full overflow-y-auto">
+        <div className="px-3 sm:px-6 py-4 sm:py-5 border-b border-border bg-background">
+          <div className="h-5 w-24 bg-muted rounded animate-pulse" />
+          <div className="h-3 w-40 bg-muted rounded animate-pulse mt-2" />
+        </div>
+        <div className="px-3 sm:px-6 py-4 space-y-6">
+          {[1, 2].map(g => (
+            <div key={g}>
+              <div className="h-3 w-32 bg-muted rounded animate-pulse mb-3" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="animate-pulse rounded-xl border border-border bg-card p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-muted" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="h-3.5 w-24 bg-muted rounded" />
+                        <div className="h-2.5 w-32 bg-muted rounded" />
+                      </div>
+                    </div>
+                    <div className="h-2 w-full bg-muted rounded" />
+                    <div className="h-2 w-3/4 bg-muted rounded" />
+                    <div className="h-2 rounded-full bg-muted" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

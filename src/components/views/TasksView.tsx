@@ -3,11 +3,12 @@ import { useTasks } from "@/hooks/use-tasks";
 import { useUpdateTaskStatus } from "@/hooks/use-update-task";
 import { useAgents } from "@/hooks/use-agents";
 import { MOCK_AGENTS } from "@/constants/agents";
-import { Circle, Clock, AlertCircle, CheckCircle2, Loader2, Plus, Play, XCircle, Pencil, ListChecks, SortAsc, ArrowUp, ArrowDown, ChevronDown } from "lucide-react";
+import { Circle, Clock, AlertCircle, CheckCircle2, Plus, Play, XCircle, Pencil, ListChecks, ArrowUp, ArrowDown, Lock, RefreshCw, CalendarDays, List, LayoutGrid } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { NewTaskDialog } from "@/components/dialogs/NewTaskDialog";
 import { EditTaskDialog } from "@/components/dialogs/EditTaskDialog";
+import { TaskCalendarView } from "@/components/views/TaskCalendarView";
 import { toast } from "sonner";
 import { parseTaskMeta, PRIORITY_CONFIG, isOverdue, isDueSoon, type TaskPriority } from "@/lib/tasks";
 
@@ -21,6 +22,7 @@ const STATUS_CONFIG: Record<string, { icon: any; color: string; label: string; b
 
 type SortField = "title" | "status" | "priority" | "due_date" | "created_at" | "agent";
 type SortDir = "asc" | "desc";
+type ViewMode = "table" | "calendar";
 
 export function TasksView() {
   const { data: dbTasks, isLoading } = useTasks();
@@ -34,6 +36,7 @@ export function TasksView() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -69,6 +72,15 @@ export function TasksView() {
     }
   });
 
+  // Check if a task is blocked
+  const isBlocked = (task: any) => {
+    if (!task.meta.dependencies?.length) return false;
+    return task.meta.dependencies.some((depId: string) => {
+      const dep = rawTasks.find((t: any) => t.id === depId);
+      return dep && dep.status !== "completed";
+    });
+  };
+
   const handleStatusChange = (id: string, status: "pending" | "running" | "completed" | "failed" | "awaiting_approval") => {
     updateStatus.mutate({ id, status }, {
       onSuccess: () => toast.success(`Task marked as ${status}`),
@@ -99,6 +111,15 @@ export function TasksView() {
           <p className="text-sm text-muted-foreground mt-0.5">{tasks.length} tasks</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* View mode toggle */}
+          <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted">
+            <button onClick={() => setViewMode("table")} className={cn("p-1.5 rounded-md transition-colors", viewMode === "table" ? "bg-card shadow-sm" : "hover:bg-card/50")}>
+              <List className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={() => setViewMode("calendar")} className={cn("p-1.5 rounded-md transition-colors", viewMode === "calendar" ? "bg-card shadow-sm" : "hover:bg-card/50")}>
+              <CalendarDays className="h-3.5 w-3.5" />
+            </button>
+          </div>
           {/* Status filter */}
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
             className="px-2 py-1.5 rounded-lg bg-card border border-border text-xs text-foreground">
@@ -123,126 +144,140 @@ export function TasksView() {
         </div>
       </div>
 
-      {/* Notion-style Table */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-muted/50 backdrop-blur-sm z-10">
-            <tr className="border-b border-border">
-              <th className="text-left px-4 py-2.5 font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none" onClick={() => toggleSort("title")}>
-                <span className="flex items-center gap-1">Name <SortIcon field="title" /></span>
-              </th>
-              <th className="text-left px-3 py-2.5 font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none w-32" onClick={() => toggleSort("agent")}>
-                <span className="flex items-center gap-1">Assigned To <SortIcon field="agent" /></span>
-              </th>
-              <th className="text-left px-3 py-2.5 font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none w-36" onClick={() => toggleSort("status")}>
-                <span className="flex items-center gap-1">Status <SortIcon field="status" /></span>
-              </th>
-              <th className="text-left px-3 py-2.5 font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none w-20" onClick={() => toggleSort("priority")}>
-                <span className="flex items-center gap-1">Priority <SortIcon field="priority" /></span>
-              </th>
-              <th className="text-left px-3 py-2.5 font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none w-28" onClick={() => toggleSort("due_date")}>
-                <span className="flex items-center gap-1">Deadline <SortIcon field="due_date" /></span>
-              </th>
-              <th className="text-left px-3 py-2.5 font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none w-28" onClick={() => toggleSort("created_at")}>
-                <span className="flex items-center gap-1">Created <SortIcon field="created_at" /></span>
-              </th>
-              <th className="w-20 px-3 py-2.5"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {tasks.length === 0 && (
-              <tr>
-                <td colSpan={7} className="text-center py-16 text-muted-foreground">
-                  No tasks yet. Click "New Task" to create one.
-                </td>
+      {/* Content */}
+      {viewMode === "calendar" ? (
+        <TaskCalendarView tasks={tasks} onTaskClick={setEditTask} />
+      ) : (
+        <div className="flex-1 overflow-auto">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 bg-muted/50 backdrop-blur-sm z-10">
+              <tr className="border-b border-border">
+                <th className="text-left px-4 py-2.5 font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none" onClick={() => toggleSort("title")}>
+                  <span className="flex items-center gap-1">Name <SortIcon field="title" /></span>
+                </th>
+                <th className="text-left px-3 py-2.5 font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none w-32" onClick={() => toggleSort("agent")}>
+                  <span className="flex items-center gap-1">Assigned To <SortIcon field="agent" /></span>
+                </th>
+                <th className="text-left px-3 py-2.5 font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none w-36" onClick={() => toggleSort("status")}>
+                  <span className="flex items-center gap-1">Status <SortIcon field="status" /></span>
+                </th>
+                <th className="text-left px-3 py-2.5 font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none w-20" onClick={() => toggleSort("priority")}>
+                  <span className="flex items-center gap-1">Priority <SortIcon field="priority" /></span>
+                </th>
+                <th className="text-left px-3 py-2.5 font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none w-28" onClick={() => toggleSort("due_date")}>
+                  <span className="flex items-center gap-1">Deadline <SortIcon field="due_date" /></span>
+                </th>
+                <th className="text-left px-3 py-2.5 font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none w-28" onClick={() => toggleSort("created_at")}>
+                  <span className="flex items-center gap-1">Created <SortIcon field="created_at" /></span>
+                </th>
+                <th className="w-20 px-3 py-2.5"></th>
               </tr>
-            )}
-            {tasks.map((task: any) => {
-              const cfg = STATUS_CONFIG[task.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pending;
-              const StatusIcon = cfg.icon;
-              const dueDate = task.due_date ? (() => { try { return format(new Date(task.due_date), "MMM d, yyyy"); } catch { return task.due_date; } })() : "—";
-              const createdDate = task.created_at ? (() => { try { return format(new Date(task.created_at), "MMM d, yyyy"); } catch { return "—"; } })() : "—";
-              const isMock = typeof task.id === "string" && task.id.length === 1;
-
-              return (
-                <tr key={task.id} className={cn(
-                  "border-b border-border/50 hover:bg-muted/30 transition-colors group",
-                  isOverdue(task.due_date) && task.status !== "completed" && "bg-destructive/5",
-                  isDueSoon(task.due_date) && task.status !== "completed" && !isOverdue(task.due_date) && "bg-warning/5"
-                )}>
-                  {/* Name */}
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-foreground font-medium">{task.title}</span>
-                      {task.meta.subtasks.length > 0 && (
-                        <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                          <ListChecks className="h-3 w-3" />
-                          {task.meta.subtasks.filter((s: any) => s.done).length}/{task.meta.subtasks.length}
-                        </span>
-                      )}
-                    </div>
-                    {task.cleanDescription && (
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-md">{task.cleanDescription}</p>
-                    )}
-                  </td>
-                  {/* Assigned To */}
-                  <td className="px-3 py-3">
-                    <span className="text-xs text-foreground">{task.agent_name}</span>
-                  </td>
-                  {/* Status */}
-                  <td className="px-3 py-3">
-                    <span className={cn("inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium", cfg.bg, cfg.color)}>
-                      <StatusIcon className="h-3 w-3" />
-                      {cfg.label}
-                    </span>
-                  </td>
-                  {/* Priority */}
-                  <td className="px-3 py-3">
-                    <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", PRIORITY_CONFIG[task.meta.priority as TaskPriority]?.color || PRIORITY_CONFIG.P2.color)}>
-                      {task.meta.priority}
-                    </span>
-                  </td>
-                  {/* Deadline */}
-                  <td className="px-3 py-3">
-                    <span className={cn("text-xs", isOverdue(task.due_date) && task.status !== "completed" ? "text-destructive font-medium" : "text-muted-foreground")}>
-                      {dueDate}
-                    </span>
-                  </td>
-                  {/* Created */}
-                  <td className="px-3 py-3">
-                    <span className="text-xs text-muted-foreground">{createdDate}</span>
-                  </td>
-                  {/* Actions */}
-                  <td className="px-3 py-3">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {!isMock && (
-                        <button onClick={() => setEditTask(task)} className="p-1 rounded hover:bg-muted transition-all" title="Edit">
-                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                        </button>
-                      )}
-                      {!isMock && task.status === "pending" && (
-                        <button onClick={() => handleStatusChange(task.id, "running")} title="Start" className="p-1 rounded hover:bg-primary/10 text-primary transition-all">
-                          <Play className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                      {!isMock && task.status === "running" && (
-                        <button onClick={() => handleStatusChange(task.id, "completed")} title="Done" className="p-1 rounded hover:bg-success/10 text-success transition-all">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                      {!isMock && task.status !== "completed" && task.status !== "failed" && (
-                        <button onClick={() => handleStatusChange(task.id, "failed")} title="Failed" className="p-1 rounded hover:bg-destructive/10 text-destructive transition-all">
-                          <XCircle className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
+            </thead>
+            <tbody>
+              {tasks.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="text-center py-16 text-muted-foreground">
+                    No tasks yet. Click "New Task" to create one.
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              )}
+              {tasks.map((task: any) => {
+                const cfg = STATUS_CONFIG[task.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.pending;
+                const StatusIcon = cfg.icon;
+                const dueDate = task.due_date ? (() => { try { return format(new Date(task.due_date), "MMM d, yyyy"); } catch { return task.due_date; } })() : "—";
+                const createdDate = task.created_at ? (() => { try { return format(new Date(task.created_at), "MMM d, yyyy"); } catch { return "—"; } })() : "—";
+                const isMock = typeof task.id === "string" && task.id.length === 1;
+                const blocked = isBlocked(task);
+
+                return (
+                  <tr key={task.id} className={cn(
+                    "border-b border-border/50 hover:bg-muted/30 transition-colors group",
+                    blocked && "opacity-60",
+                    isOverdue(task.due_date) && task.status !== "completed" && "bg-destructive/5",
+                    isDueSoon(task.due_date) && task.status !== "completed" && !isOverdue(task.due_date) && "bg-warning/5"
+                  )}>
+                    {/* Name */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {blocked && <Lock className="h-3 w-3 text-warning shrink-0" />}
+                        {task.is_recurring && <RefreshCw className="h-3 w-3 text-primary shrink-0" />}
+                        <span className="text-foreground font-medium">{task.title}</span>
+                        {task.meta.subtasks.length > 0 && (
+                          <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                            <ListChecks className="h-3 w-3" />
+                            {task.meta.subtasks.filter((s: any) => s.done).length}/{task.meta.subtasks.length}
+                          </span>
+                        )}
+                      </div>
+                      {blocked && task.meta.dependencies?.length > 0 && (
+                        <p className="text-xs text-warning mt-0.5 flex items-center gap-1">
+                          <Lock className="h-2.5 w-2.5" />
+                          Blocked by {task.meta.dependencies.length} task{task.meta.dependencies.length > 1 ? "s" : ""}
+                        </p>
+                      )}
+                      {task.cleanDescription && !blocked && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-md">{task.cleanDescription}</p>
+                      )}
+                    </td>
+                    {/* Assigned To */}
+                    <td className="px-3 py-3">
+                      <span className="text-xs text-foreground">{task.agent_name}</span>
+                    </td>
+                    {/* Status */}
+                    <td className="px-3 py-3">
+                      <span className={cn("inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium", cfg.bg, cfg.color)}>
+                        <StatusIcon className="h-3 w-3" />
+                        {cfg.label}
+                      </span>
+                    </td>
+                    {/* Priority */}
+                    <td className="px-3 py-3">
+                      <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", PRIORITY_CONFIG[task.meta.priority as TaskPriority]?.color || PRIORITY_CONFIG.P2.color)}>
+                        {task.meta.priority}
+                      </span>
+                    </td>
+                    {/* Deadline */}
+                    <td className="px-3 py-3">
+                      <span className={cn("text-xs", isOverdue(task.due_date) && task.status !== "completed" ? "text-destructive font-medium" : "text-muted-foreground")}>
+                        {dueDate}
+                      </span>
+                    </td>
+                    {/* Created */}
+                    <td className="px-3 py-3">
+                      <span className="text-xs text-muted-foreground">{createdDate}</span>
+                    </td>
+                    {/* Actions */}
+                    <td className="px-3 py-3">
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {!isMock && (
+                          <button onClick={() => setEditTask(task)} className="p-1 rounded hover:bg-muted transition-all" title="Edit">
+                            <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                          </button>
+                        )}
+                        {!isMock && task.status === "pending" && !blocked && (
+                          <button onClick={() => handleStatusChange(task.id, "running")} title="Start" className="p-1 rounded hover:bg-primary/10 text-primary transition-all">
+                            <Play className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {!isMock && task.status === "running" && (
+                          <button onClick={() => handleStatusChange(task.id, "completed")} title="Done" className="p-1 rounded hover:bg-success/10 text-success transition-all">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {!isMock && task.status !== "completed" && task.status !== "failed" && (
+                          <button onClick={() => handleStatusChange(task.id, "failed")} title="Failed" className="p-1 rounded hover:bg-destructive/10 text-destructive transition-all">
+                            <XCircle className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <NewTaskDialog open={showNew} onOpenChange={setShowNew} />
       {editTask && <EditTaskDialog open={!!editTask} onOpenChange={(o) => !o && setEditTask(null)} task={editTask} />}
