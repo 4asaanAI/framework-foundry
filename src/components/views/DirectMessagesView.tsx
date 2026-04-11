@@ -189,7 +189,7 @@ export function DirectMessagesView() {
                 <span className="text-xs text-muted-foreground font-medium px-2">{date}</span>
                 <div className="flex-1 h-px bg-border" />
               </div>
-              {msgs!.map((dm) => {
+              {(msgs as any[]).map((dm: any) => {
                 const isMine = dm.sender_id === user?.id;
                 return (
                   <div key={dm.id} className={cn("flex gap-2 mb-2 group", isMine ? "justify-end" : "justify-start")}>
