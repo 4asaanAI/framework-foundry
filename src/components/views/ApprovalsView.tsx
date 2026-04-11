@@ -2,6 +2,7 @@
 // Enhanced with Tier 1/2/3 system, timeout countdown, audit trail, filters
 
 import { useState } from "react";
+import { ProfileViewSwitcher } from "@/components/ProfileViewSwitcher";
 import { useApprovals } from "@/hooks/use-approvals";
 import {
   useApprovalWorkflow,
@@ -117,12 +118,10 @@ export function ApprovalsView() {
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [clarifyApprovalId, setClarifyApprovalId] = useState<string | null>(null);
-  // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  // Action type filter
   const [actionTypeFilter, setActionTypeFilter] = useState("all");
-  // SLA stats toggle
   const [showSLA, setShowSLA] = useState(false);
+  const [profileFilter, setProfileFilter] = useState("all");
 
   if (isLoading) {
     return (
@@ -218,16 +217,17 @@ export function ApprovalsView() {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-primary/10">
-          <Shield className="w-6 h-6 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Approval Queue</h1>
-          <p className="text-sm text-muted-foreground">
-            {pending} pending · {timedOutCount} timed out · {enriched.length}{" "}
-            total
-          </p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-primary/10">
+            <Shield className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Approval Queue</h1>
+            <p className="text-sm text-muted-foreground">
+              {pending} pending · {timedOutCount} timed out · {enriched.length}{" "}
+              total
+            </p>
         </div>
       </div>
 
