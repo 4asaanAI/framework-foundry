@@ -76,7 +76,7 @@ export function ClarificationDialog({ open, onOpenChange, approvalId }: Clarific
           />
         </div>
         <DialogFooter>
-          <button onClick={() => onOpenChange(false)} className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors">Cancel</button>
+          <button onClick={() => onOpenChange(false)} className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-all duration-200">Cancel</button>
           <button
             onClick={handleSubmit}
             disabled={!question.trim() || submitting}

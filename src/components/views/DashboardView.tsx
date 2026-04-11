@@ -59,13 +59,13 @@ export function DashboardView() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="px-6 py-5 border-b border-border">
+      <div className="px-3 sm:px-6 py-4 sm:py-5 border-b border-border bg-background">
         <h1 className="text-lg font-semibold text-foreground">Dashboard</h1>
         <p className="text-sm text-muted-foreground mt-0.5">System health, budget overview, and agent performance</p>
       </div>
-      <div className="px-6 py-4 space-y-6">
+      <div className="px-3 sm:px-6 py-4 space-y-4 sm:space-y-6">
         {/* Stats row */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {stats.map((s) => (
             <div key={s.label} className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-center gap-2 mb-2">
@@ -78,18 +78,18 @@ export function DashboardView() {
         </div>
 
         {/* Kaiser System Health Widget */}
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card p-5 transition-all duration-200">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <ShieldCheck className="h-5 w-5 text-primary" />
             </div>
             <div className="flex-1">
               <h3 className="text-sm font-semibold text-foreground">Kaiser — System Health</h3>
-              <p className="text-[11px] text-muted-foreground">Real-time platform monitoring and agent status</p>
+              <p className="text-xs text-muted-foreground">Real-time platform monitoring and agent status</p>
             </div>
             <div className="text-right">
               <p className={cn("text-2xl font-bold font-mono", healthColor)}>{healthScore}%</p>
-              <p className="text-[10px] text-muted-foreground">Health Score</p>
+              <p className="text-xs text-muted-foreground">Health Score</p>
             </div>
           </div>
 
@@ -97,19 +97,19 @@ export function DashboardView() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <div className="rounded-lg bg-background border border-border p-3 text-center">
               <p className="text-lg font-bold text-success font-mono">{idleAgents}</p>
-              <p className="text-[10px] text-muted-foreground">Idle</p>
+              <p className="text-xs text-muted-foreground">Idle</p>
             </div>
             <div className="rounded-lg bg-background border border-border p-3 text-center">
               <p className="text-lg font-bold text-primary font-mono">{activeAgents}</p>
-              <p className="text-[10px] text-muted-foreground">Thinking</p>
+              <p className="text-xs text-muted-foreground">Thinking</p>
             </div>
             <div className="rounded-lg bg-background border border-border p-3 text-center">
               <p className="text-lg font-bold text-warning font-mono">{awaitingApproval}</p>
-              <p className="text-[10px] text-muted-foreground">Awaiting Approval</p>
+              <p className="text-xs text-muted-foreground">Awaiting Approval</p>
             </div>
             <div className="rounded-lg bg-background border border-border p-3 text-center">
               <p className="text-lg font-bold text-destructive font-mono">{errorAgents}</p>
-              <p className="text-[10px] text-muted-foreground">Error</p>
+              <p className="text-xs text-muted-foreground">Error</p>
             </div>
           </div>
 
@@ -128,14 +128,14 @@ export function DashboardView() {
                 <div key={agent.id} className="flex items-center gap-3 rounded-lg bg-background border border-border px-3 py-2">
                   <div className={cn("w-2 h-2 rounded-full shrink-0", statusColors[agent.status] || "bg-muted")} />
                   <div
-                    className="w-6 h-6 rounded flex items-center justify-center text-[9px] font-bold shrink-0"
+                    className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold shrink-0"
                     style={{ backgroundColor: agent.avatar_color + "20", color: agent.avatar_color }}
                   >
                     {agent.avatar_initials}
                   </div>
                   <span className="text-xs text-foreground flex-1 truncate">{agent.name}</span>
-                  <Badge variant="secondary" className="text-[9px] capitalize">{agent.status.replace("_", " ")}</Badge>
-                  <span className="text-[10px] text-muted-foreground font-mono w-12 text-right">{budgetPct.toFixed(0)}%</span>
+                  <Badge variant="secondary" className="text-xs capitalize">{agent.status.replace("_", " ")}</Badge>
+                  <span className="text-xs text-muted-foreground font-mono w-12 text-right">{budgetPct.toFixed(0)}%</span>
                 </div>
               );
             })}
@@ -143,7 +143,7 @@ export function DashboardView() {
         </div>
 
         {/* System Budget */}
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card p-5 transition-all duration-200">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground">System Budget</h3>
             <span className="text-xs font-mono text-muted-foreground">
@@ -168,7 +168,7 @@ export function DashboardView() {
         </div>
 
         {/* Recent Audit Log */}
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card p-5 transition-all duration-200">
           <div className="flex items-center gap-2 mb-3">
             <Activity className="h-4 w-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold text-foreground">Recent Audit Log</h3>
@@ -191,7 +191,7 @@ export function DashboardView() {
                       <span className="font-medium">{log.action}</span>
                       {log.target_table && <span className="text-muted-foreground"> on {log.target_table}</span>}
                     </p>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {log.actor_type} • {new Date(log.created_at).toLocaleString()}
                     </p>
                   </div>

@@ -109,7 +109,7 @@ export function DirectMessagesView() {
                 <div className={cn("max-w-[70%] rounded-lg px-4 py-2", isMine ? "bg-primary text-primary-foreground" : "bg-card text-foreground")}>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-semibold">{isMine ? (profile?.name || "You") : (otherProfile?.display_name || "Co-founder")}</span>
-                    <span className="text-[10px] opacity-60">{new Date(dm.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                    <span className="text-xs opacity-60">{new Date(dm.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                   </div>
                   <div className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
                     <ReactMarkdown>{dm.content}</ReactMarkdown>
