@@ -1,1 +1,0 @@
-DROP POLICY "Authenticated users can delete own chat attachments" ON storage.objects;

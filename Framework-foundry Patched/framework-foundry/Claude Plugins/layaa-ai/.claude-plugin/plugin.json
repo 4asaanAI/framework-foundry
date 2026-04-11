@@ -1,9 +1,0 @@
-{
-  "name": "layaa-ai",
-  "description": "Layaa AI Business Intelligence Plugin — Complete business skills suite (Sales, Marketing, Brand Voice, Finance, Legal, Operations, Product Management) with deep company context for Layaa AI Private Limited. Replaces generic business plugins with Layaa-aware versions that auto-detect context. Works for both Layaa AI tasks and general business tasks.",
-  "author": {
-    "name": "Layaa AI",
-    "email": "Hello@layaa.ai"
-  },
-  "version": "1.0.0"
-}
