@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useAgents } from "@/hooks/use-agents";
 import { useAgentUsageSummary, useTokenUsageLogs } from "@/hooks/use-token-usage";
 import { useConversations } from "@/hooks/use-conversations";
 import { MOCK_AGENTS } from "@/constants/agents";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend } from "recharts";
-import { Loader2, TrendingUp, Zap, DollarSign, Bot, Download, Calendar, Eye, EyeOff } from "lucide-react";
+import { Loader2, TrendingUp, Zap, DollarSign, Bot, Download, Calendar, Eye, EyeOff, GripVertical, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
