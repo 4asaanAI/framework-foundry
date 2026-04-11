@@ -8,7 +8,7 @@ export interface Profile {
   email: string;
   color: string;
   personalAgentName: string;
-  avatar?: string; // URL to profile photo
+  avatar?: string;
 }
 
 export const PROFILES: Profile[] = [
@@ -33,17 +33,23 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
-// Password validation — checks against defaults first, then localStorage overrides
 function getStoredPassword(email: string): string {
-  // Always check user-set password first (from Settings > Change Password)
   const userSet = localStorage.getItem(`layaa_pwd_custom_${email}`);
   if (userSet) return userSet;
-  // Fall back to defaults
   return DEFAULT_PASSWORDS[email] || "ab.abhi";
 }
 
 function setStoredPassword(email: string, password: string): void {
   localStorage.setItem(`layaa_pwd_custom_${email}`, password);
+}
+
+/** Generate a deterministic Supabase password from email */
+async function deriveSupabasePassword(email: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`layaa-os:${email}:2024`);
+  const hashBuf = await crypto.subtle.digest("SHA-256", data);
+  const hashArr = Array.from(new Uint8Array(hashBuf));
+  return "L!" + hashArr.map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 30);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -70,19 +76,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(u);
         const p = PROFILES.find((p) => p.email === u.email) ?? null;
         setProfile(p);
-        setLoading(false);
-      } else {
-        // Check for local session (fallback when Supabase auth is unavailable)
-        const savedProfile = localStorage.getItem("layaa_active_profile");
-        const savedUser = localStorage.getItem("layaa_active_user");
-        if (savedProfile && savedUser) {
-          try {
-            setProfile(JSON.parse(savedProfile));
-            setUser(JSON.parse(savedUser));
-          } catch { /* invalid stored data */ }
-        }
-        setLoading(false);
       }
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
@@ -91,33 +86,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (p: Profile, password?: string): Promise<{ success: boolean; error?: string }> => {
     setLoading(true);
 
-    // If password protection is enabled for this profile, validate it
+    // If user has set a custom password, validate it locally first
     const customPwd = localStorage.getItem(`layaa_pwd_custom_${p.email}`);
     if (customPwd && password !== customPwd) {
       setLoading(false);
       return { success: false, error: "Incorrect password" };
     }
 
-    // Try Supabase auth (best effort — if it fails, we still proceed with local session)
+    // Sign in with Supabase using deterministic password
     try {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(`layaa-os:${p.email}:2024`);
-      const hashBuf = await crypto.subtle.digest("SHA-256", data);
-      const hashArr = Array.from(new Uint8Array(hashBuf));
-      const supabasePassword = "L!" + hashArr.map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 30);
+      const supabasePassword = await deriveSupabasePassword(p.email);
 
-      const { error } = await supabase.auth.signInWithPassword({ email: p.email, password: supabasePassword });
-      if (error) {
-        const { error: signUpError } = await supabase.auth.signUp({ email: p.email, password: supabasePassword });
+      // Try sign in first
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: p.email,
+        password: supabasePassword,
+      });
+
+      if (signInError) {
+        // If user doesn't exist, sign up (auto-confirm is enabled)
+        const { error: signUpError } = await supabase.auth.signUp({
+          email: p.email,
+          password: supabasePassword,
+          options: { data: { display_name: p.name } },
+        });
+
         if (signUpError) {
-          console.log("Supabase auth unavailable, using local session:", signUpError.message);
+          console.warn("Supabase auth failed, falling back to local session:", signUpError.message);
+          // Fall through to local session
+        } else {
+          // Sign up succeeded with auto-confirm, now sign in
+          const { error: retryError } = await supabase.auth.signInWithPassword({
+            email: p.email,
+            password: supabasePassword,
+          });
+          if (retryError) {
+            console.warn("Sign in after signup failed:", retryError.message);
+          }
         }
       }
+
+      // Check if we now have a valid session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        // Ensure profile exists in DB
+        const userId = session.user.id;
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("user_id", userId)
+          .maybeSingle();
+
+        if (!existingProfile) {
+          await supabase.from("profiles").insert({
+            user_id: userId,
+            display_name: p.name,
+            role: "admin",
+          });
+        }
+
+        setUser(session.user);
+        setProfile(p);
+        setLoading(false);
+        return { success: true };
+      }
     } catch (e) {
-      console.log("Supabase auth skipped:", e);
+      console.warn("Supabase auth exception:", e);
     }
 
-    // Always proceed with local session — store profile in localStorage
+    // Fallback: local session (for when Supabase auth is completely unavailable)
     const localUser = { id: p.email.split("@")[0] + "-local", email: p.email };
     localStorage.setItem("layaa_active_profile", JSON.stringify(p));
     localStorage.setItem("layaa_active_user", JSON.stringify(localUser));
