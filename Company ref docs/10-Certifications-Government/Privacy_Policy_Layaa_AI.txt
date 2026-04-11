@@ -1,0 +1,154 @@
+PRIVACY POLICY
+Layaa AI Private Limited
+CIN: U62099HR2025PTC139528
+Website: https://layaa.ai
+Email: Hello@layaa.ai
+Last Updated: February 18, 2026
+1. Introduction
+At Layaa AI Private Limited ("Layaa AI", "we", "us", or "our"), accessible from https://layaa.ai, we are committed to protecting the privacy and security of your personal information. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and when you engage our services for AI automation and enablement solutions.
+This Privacy Policy applies to:
+Information collected through our website (https://layaa.ai)
+Information collected during the provision of our consulting, training, and automation development services
+Information collected through client engagements, projects, and ongoing support arrangements
+If you have questions or require additional information about our Privacy Policy, please contact us at Hello@layaa.ai.
+2. Consent and Acceptance
+By using our website, engaging our services, or providing information to us, you hereby consent to this Privacy Policy and agree to its terms. If you do not agree with this Privacy Policy, please do not access our website or use our services.
+3. Information We Collect
+We collect information in two primary contexts: through our website operations and through our service delivery to clients.
+3.1 Information Collected Through Our Website
+Contact Forms and Newsletter Signup: When you submit a contact form or sign up for our newsletter, we collect:
+Name and company name
+Email address
+Phone number (if provided)
+Message content and inquiry details
+Any other information you voluntarily provide
+Automatically Collected Information: When you visit our website, we automatically collect certain technical information:
+Internet Protocol (IP) addresses
+Browser type and version
+Internet Service Provider (ISP)
+Date and time stamps of visits
+Referring and exit pages
+Pages visited and navigation patterns
+Device information and operating system
+3.2 Information Collected Through Service Delivery
+When you engage Layaa AI for consulting, training, or automation development services, we may collect and process the following categories of information:
+Business and Organizational Information:
+Company details, organizational structure, and business objectives
+Business process documentation and workflow information
+Operational data necessary for process assessment and automation planning
+Existing system configurations and technical infrastructure details
+Employee and Training Information:
+Employee names, roles, and contact information (for training purposes)
+Training participation records and assessment data
+HR data relevant to workforce enablement programmes
+Technical Access Information:
+System credentials and API access tokens (where necessary for integration)
+Database connection details and authentication information
+Third-party platform credentials (CRM, productivity tools, etc.)
+Customer and End-User Data:
+Customer data from your existing systems (when required for automation development)
+End-user information processed through automated workflows we develop
+Transaction records and interaction data relevant to automation requirements
+4. How We Use Your Information
+We use the collected information for various legitimate business purposes:
+4.1 Website Operations
+Provide, operate, and maintain our website
+Improve, personalize, and expand our website functionality
+Understand and analyze website usage patterns
+Respond to inquiries and provide customer support
+Send newsletters and marketing communications (with consent)
+4.2 Service Delivery and Client Engagement
+Deliver consulting, training, and automation development services
+Assess business processes and identify automation opportunities
+Develop, test, and deploy custom automation solutions
+Integrate automation systems with existing client infrastructure
+Provide ongoing maintenance, support, and system monitoring
+Conduct workforce training and enablement programmes
+Communicate with clients regarding projects, updates, and service matters
+4.3 Business Operations
+Develop new products, services, features, and functionality
+Conduct internal research and development
+Detect, prevent, and address technical issues and fraud
+Comply with legal obligations and regulatory requirements
+Enforce our terms and conditions and protect our legal rights
+5. Data Security and Protection
+We implement appropriate technical and organizational security measures to protect your information against unauthorized access, alteration, disclosure, or destruction. These measures include:
+Encryption of data in transit and at rest
+Secure API connections and authentication protocols
+Access controls and role-based permissions
+Regular security assessments and monitoring
+Secure development practices and code review procedures
+Confidentiality agreements with employees and contractors
+However, no method of transmission over the internet or electronic storage is completely secure. While we strive to protect your information, we cannot guarantee absolute security.
+6. Third-Party Services and Data Sharing
+6.1 Technology Platforms and Tools
+In providing our services, we utilize the following third-party platforms and tools:
+n8n (workflow automation platform)
+Relevance AI (AI platform for automation development)
+Supabase (backend and database services)
+Zoho CRM (customer relationship management)
+Various third-party APIs as required by specific client projects
+6.2 Data Sharing Practices
+We may share your information in the following circumstances:
+Service Providers: With third-party vendors who provide services on our behalf (hosting, analytics, development tools), subject to confidentiality obligations
+Client-Authorized Integrations: With platforms and systems specified by clients for automation integration purposes
+Legal Requirements: When required by law, regulation, legal process, or governmental request
+Business Transfers: In connection with a merger, acquisition, or sale of assets, subject to continuation of this Privacy Policy
+Protection of Rights: To protect our rights, property, safety, or that of our clients and the public
+6.3 Third-Party Privacy Policies
+This Privacy Policy does not apply to third-party websites, services, or platforms. We encourage you to review the privacy policies of any third-party services you interact with. We have no control over and assume no responsibility for the privacy practices of third parties.
+7. Cookies and Tracking Technologies
+Our website uses cookies and similar tracking technologies to enhance user experience and analyze website traffic. Cookies are small text files stored on your device that help us:
+Remember your preferences and settings
+Understand which pages you visit and how you navigate our website
+Analyze website performance and user behavior
+Optimize your browsing experience
+You can control cookie settings through your browser preferences. However, disabling cookies may limit certain website functionality. For detailed information about cookie management, please consult your browser's help documentation.
+8. Data Retention
+We retain personal information for as long as necessary to fulfill the purposes outlined in this Privacy Policy, unless a longer retention period is required or permitted by law. Retention periods vary based on:
+The nature of the information and purpose for collection
+Ongoing business relationship and service delivery requirements
+Legal, regulatory, tax, and accounting obligations
+Contractual commitments with clients
+When personal information is no longer required, we securely delete or anonymize it in accordance with applicable data protection laws.
+9. Your Rights Under Indian Law
+Under the Digital Personal Data Protection Act, 2023 (DPDP Act) and the Information Technology Act, 2000, you have the following rights:
+Right to Access: You have the right to obtain information about the personal data we hold about you
+Right to Correction: You have the right to request correction of inaccurate or incomplete personal data
+Right to Erasure: You have the right to request deletion of your personal data, subject to legal and contractual obligations
+Right to Withdraw Consent: Where processing is based on consent, you have the right to withdraw consent at any time
+Right to Nominate: You have the right to nominate another individual to exercise your rights in the event of your death or incapacity
+Right to Grievance Redressal: You have the right to lodge a complaint with our Grievance Officer or the Data Protection Board of India
+To exercise any of these rights, please contact us at Hello@layaa.ai. We will respond to your request within the timeframes required by applicable law (typically within 30 days).
+10. Additional Rights for European Users
+If you are located in the European Economic Area (EEA), United Kingdom, or Switzerland, you have additional rights under the General Data Protection Regulation (GDPR):
+Right to Rectification: You have the right to request correction of inaccurate personal data
+Right to Restriction of Processing: You have the right to request restriction of processing under certain conditions
+Right to Object: You have the right to object to processing of your personal data based on legitimate interests
+Right to Data Portability: You have the right to receive your personal data in a structured, machine-readable format and transmit it to another controller
+Right to Lodge a Complaint: You have the right to lodge a complaint with a supervisory authority in your jurisdiction
+11. International Data Transfers
+Layaa AI is headquartered in India. If you access our services from outside India, your information may be transferred to, stored, and processed in India or other countries where we or our service providers operate. We ensure that appropriate safeguards are in place for international data transfers in accordance with applicable data protection laws.
+12. Children's Privacy
+Our services are not directed to individuals under the age of 18. We do not knowingly collect personal information from children. If you are a parent or guardian and believe that your child has provided us with personal information, please contact us immediately at Hello@layaa.ai, and we will take steps to delete such information from our systems.
+13. Changes to This Privacy Policy
+We may update this Privacy Policy from time to time to reflect changes in our practices, technology, legal requirements, or other factors. We will notify you of material changes by:
+Posting the updated Privacy Policy on our website
+Updating the "Last Updated" date at the top of this document
+Sending email notifications to registered users (for material changes)
+Your continued use of our website or services after changes become effective constitutes acceptance of the revised Privacy Policy.
+14. Grievance Redressal Mechanism
+In accordance with the Information Technology Act, 2000 and the Digital Personal Data Protection Act, 2023, we have designated a Grievance Officer to address your concerns regarding data privacy and security.
+Grievance Officer Contact:
+Email: Hello@layaa.ai
+Address: Layaa AI Private Limited, Gurgaon, Haryana, India
+Our Grievance Officer will acknowledge your complaint within 24 hours and resolve it within 30 days of receipt. If you are not satisfied with the resolution, you have the right to escalate the matter to the Data Protection Board of India.
+15. Contact Information
+For questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
+Layaa AI Private Limited
+Email: Hello@layaa.ai
+Website: https://layaa.ai
+CIN: U62099HR2025PTC139528
+Location: Gurgaon, Haryana, India
+This Privacy Policy is effective as of February 18, 2026.
+By using our website or services, you acknowledge that you have read, understood, and agree to be bound by this Privacy Policy.

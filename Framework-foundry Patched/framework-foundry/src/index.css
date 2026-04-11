@@ -1,0 +1,233 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Light theme — warm, calm, Notion/Linear style */
+  :root {
+    --background: 30 14% 95%;
+    --foreground: 20 10% 15%;
+
+    --card: 30 12% 92%;
+    --card-foreground: 20 10% 15%;
+
+    --popover: 30 14% 95%;
+    --popover-foreground: 20 10% 15%;
+
+    --primary: 22 80% 54%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 30 12% 92%;
+    --secondary-foreground: 20 10% 40%;
+
+    --muted: 30 10% 90%;
+    --muted-foreground: 20 6% 50%;
+
+    --accent: 216 50% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 30 10% 86%;
+    --input: 30 10% 86%;
+    --ring: 22 80% 54%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 30 14% 97%;
+    --sidebar-foreground: 20 6% 50%;
+    --sidebar-primary: 22 80% 54%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 12% 92%;
+    --sidebar-accent-foreground: 20 10% 15%;
+    --sidebar-border: 30 10% 86%;
+    --sidebar-ring: 22 80% 54%;
+
+    --warning: 48 96% 53%;
+    --warning-foreground: 20 10% 15%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+    --info: 216 50% 40%;
+    --info-foreground: 0 0% 100%;
+  }
+
+  /* Dark theme — deep charcoal, Claude-inspired */
+  .dark {
+    --background: 0 0% 10%;
+    --foreground: 30 10% 90%;
+
+    --card: 0 0% 14%;
+    --card-foreground: 30 10% 90%;
+
+    --popover: 0 0% 14%;
+    --popover-foreground: 30 10% 90%;
+
+    --primary: 22 80% 54%;
+    --primary-foreground: 30 10% 95%;
+
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 30 6% 65%;
+
+    --muted: 0 0% 18%;
+    --muted-foreground: 30 4% 55%;
+
+    --accent: 216 50% 40%;
+    --accent-foreground: 30 10% 95%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 30 10% 95%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 22 80% 54%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 9%;
+    --sidebar-foreground: 30 4% 55%;
+    --sidebar-primary: 22 80% 54%;
+    --sidebar-primary-foreground: 30 10% 95%;
+    --sidebar-accent: 0 0% 14%;
+    --sidebar-accent-foreground: 30 10% 90%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 22 80% 54%;
+
+    --warning: 48 96% 53%;
+    --warning-foreground: 0 0% 10%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 10%;
+    --info: 216 50% 40%;
+    --info-foreground: 0 0% 10%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", sans-serif;
+    letter-spacing: -0.011em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  code, pre, .font-mono {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-feature-settings: "liga" 0, "calt" 0;
+  }
+
+  /* Scrollbar — slim, refined, non-intrusive */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted));
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Selection highlight */
+  ::selection {
+    background: hsl(var(--primary) / 0.2);
+  }
+
+  /* Focus ring consistency */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: var(--radius);
+  }
+}
+
+@layer utilities {
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fade-in-scale {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes pulse-soft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.25s ease-out;
+  }
+
+  .animate-fade-in-scale {
+    animation: fade-in-scale 0.2s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+  }
+
+  .animate-pulse-soft {
+    animation: pulse-soft 2s ease-in-out infinite;
+  }
+
+  /* Premium text rendering */
+  .text-premium {
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  /* Standardized transition for all interactive elements */
+  .transition-default {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  /* Card surface — consistent depth */
+  .surface-card {
+    @apply bg-card border border-border rounded-xl;
+  }
+
+  /* Surface with subtle hover elevation */
+  .surface-interactive {
+    @apply bg-card border border-border rounded-xl transition-all duration-200 ease-out hover:border-primary/20 hover:shadow-sm;
+  }
+
+  /* Landscape tablet — show sidebar alongside content */
+  @media (min-width: 768px) and (orientation: landscape) {
+    .lg\:translate-x-0 { transform: translateX(0) !important; }
+    .lg\:relative { position: relative !important; }
+    .lg\:z-auto { z-index: auto !important; }
+  }
+
+  /* Compact mode — denser spacing and smaller text */
+  .compact-mode {
+    font-size: 13px;
+  }
+  .compact-mode .text-sm { font-size: 12px; }
+  .compact-mode .text-xs { font-size: 11px; }
+  .compact-mode .py-3 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  .compact-mode .py-4 { padding-top: 0.625rem; padding-bottom: 0.625rem; }
+  .compact-mode .py-5 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+  .compact-mode .px-6 { padding-left: 1rem; padding-right: 1rem; }
+  .compact-mode .gap-3 { gap: 0.5rem; }
+  .compact-mode .gap-4 { gap: 0.625rem; }
+  .compact-mode .space-y-4 > * + * { margin-top: 0.625rem; }
+  .compact-mode .space-y-6 > * + * { margin-top: 0.75rem; }
+}
