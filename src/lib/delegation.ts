@@ -255,3 +255,67 @@ At the end, add a footnote: "Consulted with ${params.targetAgentName} for this a
     params.apiKey
   );
 }
+
+// ─── Agent Chain Types & CRUD ───
+
+export interface AgentChain {
+  id: string;
+  name: string;
+  steps: { agent_id: string; instruction: string }[];
+  created_by: string;
+  created_at: string;
+}
+
+export async function createChain(
+  name: string,
+  steps: { agent_id: string; instruction: string }[],
+  userId: string
+): Promise<AgentChain> {
+  const { data, error } = await supabase
+    .from("settings")
+    .insert({
+      key: `chain:${crypto.randomUUID()}`,
+      value: JSON.stringify({ name, steps, created_by: userId }),
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  const parsed = JSON.parse(data.value);
+  return { id: data.id, name: parsed.name, steps: parsed.steps, created_by: parsed.created_by, created_at: data.created_at };
+}
+
+export async function getChains(): Promise<AgentChain[]> {
+  const { data, error } = await supabase
+    .from("settings")
+    .select("*")
+    .like("key", "chain:%");
+  if (error) throw error;
+  return (data ?? []).map((row) => {
+    const parsed = JSON.parse(row.value);
+    return { id: row.id, name: parsed.name, steps: parsed.steps, created_by: parsed.created_by, created_at: row.created_at };
+  });
+}
+
+export async function deleteChain(chainId: string): Promise<void> {
+  const { error } = await supabase.from("settings").delete().eq("id", chainId);
+  if (error) throw error;
+}
+
+export async function executeChain(
+  chain: AgentChain,
+  initialInput: string,
+  _opts?: { model?: string; provider?: string }
+): Promise<string[]> {
+  const results: string[] = [];
+  let currentInput = initialInput;
+  for (const step of chain.steps) {
+    const result = await callLLM(
+      [{ role: "user", content: `${step.instruction}\n\nContext:\n${currentInput}` }],
+      _opts?.model ?? "gpt-4o-mini",
+      _opts?.provider ?? "openai"
+    );
+    results.push(result);
+    currentInput = result;
+  }
+  return results;
+}
