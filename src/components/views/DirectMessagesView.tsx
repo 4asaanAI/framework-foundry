@@ -123,11 +123,11 @@ export function DirectMessagesView() {
     return groups;
   }, {});
 
-  const filteredGrouped = searchQuery
+  const filteredGrouped: Record<string, any[]> = searchQuery
     ? Object.fromEntries(
         Object.entries(groupedMessages).map(([date, msgs]) => [
           date,
-          msgs!.filter((m) => m.content.toLowerCase().includes(searchQuery.toLowerCase())),
+          (msgs as any[]).filter((m: any) => m.content.toLowerCase().includes(searchQuery.toLowerCase())),
         ]).filter(([, msgs]) => (msgs as any[]).length > 0)
       )
     : groupedMessages;
