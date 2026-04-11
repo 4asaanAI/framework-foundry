@@ -116,10 +116,10 @@ export function DirectMessagesView() {
   };
 
   // Group messages by date
-  const groupedMessages = (dms ?? []).reduce<Record<string, typeof dms>>((groups, dm) => {
+  const groupedMessages = (dms ?? []).reduce<Record<string, any[]>>((groups, dm) => {
     const date = new Date(dm.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
     if (!groups[date]) groups[date] = [];
-    groups[date]!.push(dm);
+    groups[date].push(dm);
     return groups;
   }, {});
 
