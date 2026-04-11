@@ -30,18 +30,14 @@ serve(async (req) => {
       });
     }
 
-    // Get the target agent's memories and synthesize into instruction format (Sage Memory Intelligence)
+    // Get the target agent's relevant memories for context
     const { data: memories } = await sb.from("agent_memories")
-      .select("content, category, confidence")
+      .select("content, category")
       .eq("agent_id", toAgentId)
-      .eq("is_compressed", false)
-      .order("confidence", { ascending: false })
-      .limit(20);
+      .order("created_at", { ascending: false })
+      .limit(10);
 
-    const domainMap: Record<string, string> = { decision: "Decisions", preference: "Preferences", process: "Processes & Constraints", company: "Context", client_info: "Client Info", market_data: "Market Data", conversation_handoff: "Handoffs" };
-    const groups: Record<string, string[]> = {};
-    for (const m of (memories || [])) { const d = domainMap[m.category] || "General"; if (!groups[d]) groups[d] = []; groups[d].push(`- ${m.content}`); }
-    const memoryContext = Object.entries(groups).map(([k, v]) => `### ${k}\n${v.join("\n")}`).join("\n") || "";
+    const memoryContext = memories?.map(m => `[${m.category}] ${m.content}`).join("\n") || "";
 
     // Get agent KB context
     const { data: kbDocs } = await sb.from("agent_kbs")
@@ -67,29 +63,16 @@ serve(async (req) => {
     };
     const resolvedModel = MODEL_MAP[toAgent.default_model] || toAgent.default_model;
 
-    // Load project context if this conversation belongs to a project
-    let projectContext = "";
-    if (conversationId) {
-      const { data: conv } = await sb.from("conversations").select("project_id").eq("id", conversationId).maybeSingle();
-      if (conv?.project_id) {
-        const { data: proj } = await sb.from("projects").select("name, instructions").eq("project_id", conv.project_id).single();
-        if (proj) {
-          projectContext = `\n[PROJECT CONTEXT — LAYAA OS]\nProject: ${proj.name}\n${proj.instructions || ""}\n[END PROJECT CONTEXT]\n`;
-        }
-      }
-    }
-
     const systemPrompt = `You are ${toAgent.name}, role: ${toAgent.canonical_role}. ${toAgent.system_prompt || ""}
-You have been asked by ${fromAgent.name} (${fromAgent.canonical_role}) to help with a task. You are part of the Layaa OS multi-agent workforce.
-${projectContext}
-[SAGE MEMORY CONTEXT — LAYAA OS]
-${memoryContext || "No memories yet."}
-[END SAGE MEMORY]
+You have been asked by ${fromAgent.name} (${fromAgent.canonical_role}) to help with a task.
+
+Your relevant memories:
+${memoryContext}
 
 Your knowledge base:
 ${kbContext}
 
-Respond professionally and thoroughly.`;
+Respond professionally and thoroughly. You are part of a multi-agent team.`;
 
     const response = await fetch(baseUrl, {
       method: "POST",

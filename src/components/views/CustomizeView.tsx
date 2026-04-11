@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from "react";
-import { Search, Plug, CheckCircle2, Plus, Upload, X, Zap, Puzzle, Star, StarOff, Pencil } from "lucide-react";
+import { Search, Plug, CheckCircle2, Plus, Upload, X, Zap, Puzzle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -304,9 +304,9 @@ export function CustomizeView() {
 
  <Tabs value={tab} onValueChange={setTab}>
  <TabsList>
- <TabsTrigger value="integrations">Integrations <Badge variant="secondary" className="ml-1.5 text-xs">{INTEGRATION_APPS.length}</Badge></TabsTrigger>
- <TabsTrigger value="skills">Skills <Badge variant="secondary" className="ml-1.5 text-xs">{skills?.length ?? 0}</Badge></TabsTrigger>
- <TabsTrigger value="plugins">Plugins <Badge variant="secondary" className="ml-1.5 text-xs">{(plugins?.length ?? 0) + LIBRARY_PLUGINS.length}</Badge></TabsTrigger>
+ <TabsTrigger value="integrations">Integrations <Badge variant="secondary" className="ml-1.5 text-[10px]">{INTEGRATION_APPS.length}</Badge></TabsTrigger>
+ <TabsTrigger value="skills">Skills <Badge variant="secondary" className="ml-1.5 text-[10px]">{skills?.length ?? 0}</Badge></TabsTrigger>
+ <TabsTrigger value="plugins">Plugins <Badge variant="secondary" className="ml-1.5 text-[10px]">{(plugins?.length ?? 0) + LIBRARY_PLUGINS.length}</Badge></TabsTrigger>
  </TabsList>
 
  {/* Search — shared */}
@@ -352,11 +352,11 @@ export function CustomizeView() {
  {app.name}
  {isConnected && <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />}
  </h3>
- <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{app.description}</p>
+ <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">{app.description}</p>
  </div>
  </div>
  <div className="flex items-center justify-between mt-2">
- <Badge variant="outline" className="text-xs">{app.category}</Badge>
+ <Badge variant="outline" className="text-[9px]">{app.category}</Badge>
  {isConnected ? (
    <Button
      variant="outline"
@@ -391,16 +391,6 @@ export function CustomizeView() {
  <TabsContent value="skills">
  <div className="flex items-center gap-2 mb-4">
  <Button size="sm" onClick={() => setShowCreateSkill(true)}><Plus className="h-3.5 w-3.5 mr-1" /> Create skill</Button>
- <Button size="sm" variant="outline" onClick={async () => {
- try {
- const { seedSkills } = await import("@/lib/seed");
- const result = await seedSkills();
- if (result.inserted > 0) { toast.success(`Seeded ${result.inserted} skills (${result.skipped} skipped)`); }
- else if (result.skipped > 0) { toast.info(`All ${result.skipped} skills already exist`); }
- else { toast.error("Seeding failed — database may require authentication. Go to Supabase dashboard and disable RLS on the skills table, or sign in with a valid Supabase account."); }
- queryClient.invalidateQueries({ queryKey: ["skills"] });
- } catch (e: any) { toast.error(`Seed failed: ${e.message}`); }
- }}><Zap className="h-3.5 w-3.5 mr-1" /> Seed 88 Skills</Button>
  <Button size="sm" variant="outline" onClick={() => setShowUploadSkill(true)}><Upload className="h-3.5 w-3.5 mr-1" /> Upload skill</Button>
  </div>
 
@@ -435,28 +425,17 @@ export function CustomizeView() {
  <div key={cat} className="mb-4">
  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{cat}</h3>
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
- {filteredSkills.filter((s: any) => s.category === cat).map((skill: any) => {
- const favs: string[] = JSON.parse(localStorage.getItem("layaa_fav_skills") || "[]");
- const isFav = favs.includes(skill.name);
- return (
- <div key={skill.id} className="border border-border rounded-lg p-3 hover:border-primary/30 transition-all duration-200 group">
+ {filteredSkills.filter((s: any) => s.category === cat).map((skill: any) => (
+ <div key={skill.id} className="border border-border rounded-lg p-3 hover:border-primary/30 transition-colors">
  <div className="flex items-center gap-2">
  <Zap className="h-4 w-4 text-primary shrink-0" />
- <div className="flex-1 min-w-0">
+ <div className="min-w-0">
  <div className="text-sm font-medium truncate">{skill.name}</div>
- <div className="text-xs text-muted-foreground truncate">{skill.description}</div>
- </div>
- <button onClick={() => {
- const updated = isFav ? favs.filter((n: string) => n !== skill.name) : [...favs, skill.name];
- localStorage.setItem("layaa_fav_skills", JSON.stringify(updated));
- toast.success(isFav ? "Removed from favorites" : "Added to favorites");
- }} className="p-1 rounded opacity-0 group-hover:opacity-100 transition-all duration-200" title={isFav ? "Unfavorite" : "Favorite"}>
- {isFav ? <Star className="h-3.5 w-3.5 text-warning fill-warning" /> : <StarOff className="h-3.5 w-3.5 text-muted-foreground" />}
- </button>
+ <div className="text-[10px] text-muted-foreground truncate">{skill.description}</div>
  </div>
  </div>
- );
- })}
+ </div>
+ ))}
  </div>
  </div>
  ))}
@@ -472,7 +451,7 @@ export function CustomizeView() {
  <span className="text-xl">{item.icon}</span>
  <div className="flex-1 min-w-0">
  <div className="text-sm font-medium">{item.name}</div>
- <div className="text-xs text-muted-foreground">{item.desc}</div>
+ <div className="text-[10px] text-muted-foreground">{item.desc}</div>
  </div>
  <Button size="sm" variant="outline" onClick={() => addLibraryPlugin(item)}>Add</Button>
  </div>
@@ -485,12 +464,12 @@ export function CustomizeView() {
  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Custom Plugins</h3>
  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
  {filteredPlugins.map((plugin: any) => (
- <div key={plugin.id} className="border border-border rounded-lg p-3 hover:border-primary/30 transition-all duration-200">
+ <div key={plugin.id} className="border border-border rounded-lg p-3 hover:border-primary/30 transition-colors">
  <div className="flex items-center gap-2">
  <Puzzle className="h-4 w-4 text-primary shrink-0" />
  <div className="min-w-0">
  <div className="text-sm font-medium truncate">{plugin.display_name}</div>
- <div className="text-xs text-muted-foreground truncate">{plugin.context}</div>
+ <div className="text-[10px] text-muted-foreground truncate">{plugin.context}</div>
  </div>
  </div>
  </div>

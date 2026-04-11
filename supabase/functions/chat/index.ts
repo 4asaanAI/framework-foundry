@@ -33,33 +33,6 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(supabaseUrl, serviceKey);
 
-    // ─── 0. Rate limiting (10 req/min per profile) ──────────────────────────
-    if (profileId) {
-      const rateLimitKey = `rate_limit_${profileId}`;
-      const { data: rlSetting } = await sb.from("settings").select("value").eq("key", rateLimitKey).maybeSingle();
-      const now = Date.now();
-      let rl = { count: 0, window_start: now };
-      if (rlSetting?.value) {
-        try { rl = JSON.parse(rlSetting.value); } catch { /* reset */ }
-      }
-      // Reset window if >60 seconds old
-      if (now - rl.window_start > 60000) {
-        rl = { count: 1, window_start: now };
-      } else {
-        rl.count++;
-      }
-      // Enforce limit
-      if (rl.count > 10) {
-        const retryAfter = Math.ceil((60000 - (now - rl.window_start)) / 1000);
-        return new Response(JSON.stringify({ error: "Rate limited — please wait and try again" }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(retryAfter) },
-        });
-      }
-      // Update rate limit counter
-      await sb.from("settings").upsert({ key: rateLimitKey, value: JSON.stringify(rl) }, { onConflict: "key" });
-    }
-
     // ─── 1. Resolve API key + model ────────────────────────────────────────
     let apiKey = Deno.env.get("LOVABLE_API_KEY");
     let baseUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
@@ -91,41 +64,19 @@ serve(async (req) => {
 
     if (!apiKey) throw new Error("No API key available");
 
-    // ─── 2. Build context (synthesized memories, KB, tasks) ────────────────
+    // ─── 2. Build context (memories, KB, tasks) ───────────────────────────
     let memoryContext = "";
     let kbContext = "";
 
     if (agentId) {
-      // Synthesize memories into grouped instruction blocks (Sage Memory Intelligence)
       const { data: memories } = await sb.from("agent_memories")
         .select("content, category, confidence")
         .eq("agent_id", agentId).eq("is_compressed", false)
-        .order("confidence", { ascending: false }).limit(40);
+        .order("created_at", { ascending: false }).limit(15);
 
       if (memories?.length) {
-        // Group by domain for structured injection
-        const domainMap: Record<string, string> = {
-          decision: "Decision History", preference: "User Preferences",
-          process: "Processes & Constraints", company: "Company & Project Context",
-          client_info: "Client Intelligence", market_data: "Market & Industry Data",
-          conversation_handoff: "Handoff Notes",
-        };
-        const groups: Record<string, string[]> = {};
-        for (const m of memories) {
-          const domain = domainMap[m.category] || "General";
-          if (!groups[domain]) groups[domain] = [];
-          if (groups[domain].length < 15) {
-            groups[domain].push(`- ${m.content}`);
-          }
-        }
-        const domainOrder = ["Decision History", "Processes & Constraints", "User Preferences", "Client Intelligence", "Company & Project Context", "Market & Industry Data", "Handoff Notes", "General"];
-        const sections = domainOrder
-          .filter(d => groups[d]?.length)
-          .map(d => `### ${d}\n${groups[d]!.join("\n")}`);
-
-        if (sections.length > 0) {
-          memoryContext = `\n\n[SAGE MEMORY CONTEXT — LAYAA OS]\nThe following are synthesized facts, decisions, preferences, and constraints from your conversation history on the Layaa AI platform. Treat these as authoritative context. Apply them automatically — do not re-ask about settled decisions or known preferences.\n\n${sections.join("\n\n")}\n\n_${memories.length} memories | Powered by Sage Memory Intelligence_\n[END SAGE MEMORY]`;
-        }
+        memoryContext = "\n\nYour relevant memories:\n" +
+          memories.map((m: any) => `- [${m.category}] (${Math.round(m.confidence * 100)}%) ${m.content}`).join("\n");
       }
 
       const { data: kbDocs } = await sb.from("agent_kbs").select("filename, content").eq("agent_id", agentId).limit(5);
@@ -145,51 +96,16 @@ serve(async (req) => {
       }
     }
 
-    // ─── 2b. Load project context if conversation is scoped to a project ────
-    let projectContext = "";
-    if (conversationId) {
-      const { data: conv } = await sb.from("conversations").select("project_id").eq("id", conversationId).single();
-      if (conv?.project_id) {
-        const { data: project } = await sb.from("projects").select("name, description, instructions").eq("project_id", conv.project_id).single();
-        if (project) {
-          const projSections: string[] = [];
-          projSections.push(`## Project: ${project.name}`);
-          if (project.description) projSections.push(project.description);
-          if (project.instructions) projSections.push(`\n### Project Instructions\n${project.instructions}`);
-
-          // Load project knowledge chunks
-          const { data: pkChunks } = await sb.from("project_knowledge_chunks")
-            .select("content").eq("project_id", conv.project_id).limit(8);
-          if (pkChunks?.length) {
-            projSections.push(`\n### Project Knowledge\n${pkChunks.map((c: any) => c.content.slice(0, 1500)).join("\n---\n")}`);
-          }
-
-          // Load project-scoped context memories
-          const { data: workCtx } = await sb.from("work_contexts").select("context_id").eq("project_id", conv.project_id).limit(1).maybeSingle();
-          if (workCtx) {
-            const { data: ctxMems } = await sb.from("context_memories").select("key, value").eq("context_id", workCtx.context_id).order("updated_at", { ascending: false }).limit(15);
-            if (ctxMems?.length) {
-              projSections.push(`\n### Project Memory\n${ctxMems.map((m: any) => `- **${m.key}**: ${m.value}`).join("\n")}`);
-            }
-          }
-
-          projectContext = `\n\n[PROJECT CONTEXT — LAYAA OS]\nYou are working within a specific project on the Layaa AI platform. Scope all responses to this project. Do not reference other projects.\n\n${projSections.join("\n")}\n\n_Project context loaded by Layaa OS_\n[END PROJECT CONTEXT]`;
-        }
-      }
-    }
-
     // ─── 3. System prompt with formatting + tool rules ─────────────────────
     const defaultSystem = `You are ${agentName || "an AI assistant"}, whose role is: ${agentRole || "helpful assistant"}. ${systemPrompt || ""}
 
-RESPONSE STYLE:
-- Be conversational and natural. Write like a knowledgeable colleague, not a report generator.
-- Use short paragraphs. Break up walls of text with line breaks.
-- Use **bold** for key terms only when it genuinely helps — don't bold everything.
-- Use bullet points when listing 3+ items, steps, or options — not for single statements.
-- Use headings (## or ###) only for longer responses that cover multiple distinct topics.
-- Use tables only for actual comparisons or structured data, not for simple lists.
-- Be comprehensive but not verbose. Answer the full question without padding.
-- Every response should feel well-thought-out and complete, not rushed or formulaic.
+RESPONSE FORMAT RULES (follow strictly):
+- Use bullet points and short paragraphs. Never write walls of text.
+- Use **bold** for key terms. Use ## or ### headings to structure longer responses.
+- Keep responses under 300 words unless the user explicitly asks for brainstorming, detailed analysis, or deep exploration.
+- If brainstorming is requested, be thorough. Otherwise, be direct and concise.
+- Use tables (markdown) for comparisons or structured data.
+- Every response should be scannable in under 10 seconds.
 
 TOOL USAGE RULES (critical):
 - You have access to tools for creating tasks, approvals, saving memories, delegating to agents, and more.
@@ -198,17 +114,7 @@ TOOL USAGE RULES (critical):
 - If a tool requires approval (like sending emails), it will be automatically routed to the Approvals board. Inform the user it's pending there.
 - Never claim you did something if no tool was called. If you cannot do something, say so clearly.
 
-When you learn important facts, decisions, or preferences from the conversation, use the save_memory tool to store them.${projectContext}${memoryContext}${kbContext}`;
-
-    // ─── 3b. Inject connected connector capabilities ─────────────────────
-    let connectorContext = "";
-    const { data: connectedConnectors } = await sb.from("credential_vault")
-      .select("name, provider").eq("is_configured", true);
-    if (connectedConnectors && connectedConnectors.length > 0) {
-      const names = connectedConnectors.map((c: any) => c.name).join(", ");
-      connectorContext = `\n\nCONNECTED INTEGRATIONS: ${names}. You can reference these services in your responses. If a user asks you to perform an action through one of these services (send email, post to Slack, create calendar event, etc.), acknowledge that the integration is connected and use the appropriate tool or suggest the action. If an integration is NOT in this list, inform the user it's not connected yet.`;
-    }
-    const fullSystem = defaultSystem + connectorContext;
+When you learn important facts, decisions, or preferences from the conversation, use the save_memory tool to store them.${memoryContext}${kbContext}`;
 
     // ─── 4. Normalize model ───────────────────────────────────────────────
     const MODEL_MAP: Record<string, string> = {
@@ -232,42 +138,9 @@ When you learn important facts, decisions, or preferences from the conversation,
       profileId: profileId || "", conversationId: conversationId || "",
     };
 
-    // ─── 5b. Conversation history truncation (sliding window: last 40 messages) ──
-    const MAX_HISTORY = 40;
-    let truncatedMessages = messages;
-    if (messages.length > MAX_HISTORY) {
-      const oldMessages = messages.slice(0, messages.length - MAX_HISTORY);
-      const recentMessages = messages.slice(-MAX_HISTORY);
-      // Summarize older messages into a context note
-      const oldSummary = oldMessages
-        .filter((m: any) => m.role === "user")
-        .slice(-5)
-        .map((m: any) => m.content.slice(0, 100))
-        .join("; ");
-      truncatedMessages = [
-        { role: "system", content: `[Earlier conversation summary: ${oldSummary || "General discussion"}. ${oldMessages.length} older messages truncated for context window efficiency.]` },
-        ...recentMessages,
-      ];
-    }
-
-    // ─── 5c. Vision: convert image attachments to multi-modal content ───────
-    const processedMessages = truncatedMessages.map((msg: any) => {
-      if (msg.role === "user" && msg.attachments && Array.isArray(msg.attachments)) {
-        const imageAttachments = msg.attachments.filter((a: any) => a.type?.startsWith("image/") && a.url);
-        if (imageAttachments.length > 0) {
-          const content: any[] = [{ type: "text", text: msg.content || "" }];
-          for (const img of imageAttachments) {
-            content.push({ type: "image_url", image_url: { url: img.url } });
-          }
-          return { ...msg, content };
-        }
-      }
-      return msg;
-    });
-
     let conversationMessages = [
-      { role: "system", content: fullSystem },
-      ...processedMessages,
+      { role: "system", content: defaultSystem },
+      ...messages,
     ];
 
     let totalToolTokens = 0;
@@ -331,7 +204,7 @@ When you learn important facts, decisions, or preferences from the conversation,
                 profile_id: profileId, model: resolvedModel,
                 tokens_in: toolData.usage?.prompt_tokens || 0,
                 tokens_out: toolData.usage?.completion_tokens || 0,
-                cost_usd: (() => { const m = resolvedModel.toLowerCase(); const rate = m.includes("opus") || m.includes("gpt-5") && !m.includes("mini") && !m.includes("nano") ? 0.00006 : m.includes("haiku") || m.includes("nano") || m.includes("flash-lite") ? 0.000005 : 0.00002; return ((toolData.usage?.prompt_tokens || 0) + (toolData.usage?.completion_tokens || 0)) * rate; })(),
+                cost_usd: ((toolData.usage?.prompt_tokens || 0) * 0.00001 + (toolData.usage?.completion_tokens || 0) * 0.00003),
               });
             }
           }
@@ -458,22 +331,16 @@ When you learn important facts, decisions, or preferences from the conversation,
               agent_id: agentId, conversation_id: conversationId || null,
               profile_id: profileId, model: resolvedModel,
               tokens_in: totalIn, tokens_out: totalOut,
-              cost_usd: (() => { const m = resolvedModel.toLowerCase(); const rate = m.includes("opus") || (m.includes("gpt-5") && !m.includes("mini") && !m.includes("nano")) ? 0.00006 : m.includes("haiku") || m.includes("nano") || m.includes("flash-lite") ? 0.000005 : 0.00002; return (totalIn + totalOut) * rate; })(),
+              cost_usd: (totalIn * 0.00001 + totalOut * 0.00003),
             });
           }
         }
 
-        // ── Sage Memory Intelligence: auto-extract memories from conversation ──
+        // Auto-extract memories (same as original)
         if (agentId && fullContent && fullContent.length > 50) {
           try {
             const extractKey = Deno.env.get("LOVABLE_API_KEY");
             if (extractKey) {
-              // Fetch existing memories for dedup
-              const { data: existingMems } = await sb.from("agent_memories")
-                .select("content").eq("agent_id", agentId).eq("is_compressed", false)
-                .order("created_at", { ascending: false }).limit(30);
-              const existingList = (existingMems || []).map((m: any) => m.content).join("\n");
-
               const extractResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
                 method: "POST",
                 headers: { Authorization: `Bearer ${extractKey}`, "Content-Type": "application/json" },
@@ -481,31 +348,26 @@ When you learn important facts, decisions, or preferences from the conversation,
                   model: "google/gemini-2.5-flash-lite",
                   messages: [{
                     role: "system",
-                    content: `You are Sage, the Memory Intelligence agent for Layaa OS — an AI workforce platform by Layaa AI. Your job is to extract meaningful, lasting knowledge from conversations.
+                    content: `You are a strict memory extraction agent for an AI workforce platform. Extract ONLY genuinely important, self-contained facts that would be useful in future conversations.
 
-CLASSIFY each extraction into exactly ONE type:
-- "decision" — concrete choices made ("We decided to use Stripe", "Going with PostgreSQL")
-- "preference" — user likes/dislikes/defaults ("User prefers markdown", "Always use INR pricing")
-- "constraint" — limits, budgets, deadlines, rules ("Budget is ₹50k", "Must ship by March", "No external funding")
-- "context_fact" — company/project/contact facts ("Founded Dec 2025", "MRR is $12k", "Contact: john@abc.com")
-- "pattern" — recurring processes, workflows, SOPs ("All proposals need sign-off", "Weekly standup on Monday")
+EXTRACT ONLY:
+- Concrete decisions ("We decided to use Stripe for payments")
+- Specific client/contact info ("Client ABC's budget is $50k, contact is John at john@abc.com")
+- Business facts and numbers ("Our MRR is $12k", "Launch date is March 15")
+- User preferences with specifics ("User prefers email over Slack for updates")
+- Process agreements ("All proposals need Abhimanyu's sign-off before sending")
 
-Map each type to a DB category:
-- decision → "decision"
-- preference → "preference"
-- constraint → "process"
-- context_fact → "company" (or "client_info" for client-specific, "market_data" for market facts)
-- pattern → "process"
+NEVER EXTRACT:
+- Questions the agent asked ("Would you like me to...", "Tell me your preference...")
+- Generic agent offers or advice ("I can help with...", "Here's what I recommend...")
+- Bullet point fragments without context ("- Preferred channel", "- Next steps")
+- Conversational filler ("Sure!", "Great question", "Let me know")
+- Incomplete sentences, headings, or labels
+- Instructions to the user ("Tell me your time zone...")
 
-QUALITY RULES:
-- Each memory MUST be a complete, standalone sentence understandable months later without context
-- Minimum 25 characters, maximum 500 characters
-- NO questions, agent offers, filler, headings, or fragments
-- Returning 0 memories is better than saving vague ones
-- Do NOT extract anything already known:
-${existingList || "(no existing memories)"}
+Each memory MUST be a complete standalone sentence understandable months later without context. Be very selective — returning 0 memories is better than saving vague ones.
 
-Return ONLY valid JSON: {"memories": [{"content": "...", "category": "decision|client_info|process|preference|company|market_data|conversation_handoff", "type": "decision|preference|constraint|context_fact|pattern", "confidence": 0.0-1.0}]}`,
+Return ONLY valid JSON: {"memories": [{"content": "...", "category": "decision|client_info|process|preference|company|market_data|conversation_handoff", "confidence": 0.0-1.0}]}. If nothing worth remembering, return {"memories": []}.`,
                   }, { role: "user", content: fullContent }],
                 }),
               });
@@ -518,16 +380,6 @@ Return ONLY valid JSON: {"memories": [{"content": "...", "category": "decision|c
                   const validCats = ["client_info", "decision", "market_data", "process", "preference", "company", "conversation_handoff"];
                   for (const mem of (extracted.memories || [])) {
                     if (mem.confidence >= 0.75 && mem.content && mem.content.length >= 25) {
-                      // Dedup check: skip if >80% similar to any existing memory
-                      const isDuplicate = (existingMems || []).some((e: any) => {
-                        const a = mem.content.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(" ");
-                        const b = e.content.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(" ");
-                        const setA = new Set(a); const setB = new Set(b);
-                        let overlap = 0; for (const t of setA) { if (setB.has(t)) overlap++; }
-                        return (2 * overlap) / (setA.size + setB.size) > 0.8;
-                      });
-                      if (isDuplicate) continue;
-
                       await sb.from("agent_memories").insert({
                         agent_id: agentId, content: mem.content,
                         category: validCats.includes(mem.category) ? mem.category : "preference",
@@ -538,7 +390,7 @@ Return ONLY valid JSON: {"memories": [{"content": "...", "category": "decision|c
                 }
               }
             }
-          } catch (e) { console.error("[Sage] Memory extract error:", e); }
+          } catch (e) { console.error("Memory extract error:", e); }
         }
       } catch (e) { console.error("Stream error:", e); }
       finally { await writer.close(); }

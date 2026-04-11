@@ -26,10 +26,6 @@ import {
   ChevronUp,
   Filter,
   MessageCircle,
-  Forward,
-  CheckSquare,
-  Square,
-  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -97,7 +93,7 @@ function AuditTrail({ approvalId }: { approvalId: string }) {
           key={i}
           className="flex items-start gap-2 text-xs text-muted-foreground"
         >
-          <span className="text-xs whitespace-nowrap opacity-60">
+          <span className="text-[10px] whitespace-nowrap opacity-60">
             {new Date(entry.timestamp).toLocaleTimeString()}
           </span>
           <span className="font-medium text-foreground/70">{entry.action}</span>
@@ -117,12 +113,6 @@ export function ApprovalsView() {
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [clarifyApprovalId, setClarifyApprovalId] = useState<string | null>(null);
-  // Bulk selection
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  // Action type filter
-  const [actionTypeFilter, setActionTypeFilter] = useState("all");
-  // SLA stats toggle
-  const [showSLA, setShowSLA] = useState(false);
 
   if (isLoading) {
     return (
@@ -145,75 +135,12 @@ export function ApprovalsView() {
   const filtered = enriched.filter((item) => {
     if (statusFilter !== "all" && item.status !== statusFilter) return false;
     if (tierFilter !== "all" && item.tier !== tierFilter) return false;
-    if (actionTypeFilter !== "all" && item.action_type !== actionTypeFilter) return false;
     return true;
   });
 
   // Stats
   const pending = enriched.filter((a) => a.status === "pending").length;
   const timedOutCount = enriched.filter((a) => a.timedOut).length;
-
-  // Unique action types for filter
-  const actionTypes = [...new Set(enriched.map(a => a.action_type).filter(Boolean))];
-
-  // SLA metrics
-  const resolvedApprovals = enriched.filter(a => a.status === "approved" || a.status === "rejected");
-  const avgResolutionMs = resolvedApprovals.length > 0
-    ? resolvedApprovals.reduce((sum, a) => {
-        const created = new Date(a.created_at).getTime();
-        const resolved = new Date(a.updated_at || a.created_at).getTime();
-        return sum + (resolved - created);
-      }, 0) / resolvedApprovals.length
-    : 0;
-  const avgResolutionMin = Math.round(avgResolutionMs / 60000);
-
-  // Bulk operations
-  const toggleSelect = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const selectAllPending = () => {
-    const pendingIds = filtered.filter(a => a.status === "pending" && !a.timedOut).map(a => a.id);
-    setSelectedIds(new Set(pendingIds));
-  };
-
-  const handleBulkApprove = () => {
-    selectedIds.forEach(id => approve(id));
-    setSelectedIds(new Set());
-  };
-
-  const handleBulkReject = () => {
-    selectedIds.forEach(id => reject(id));
-    setSelectedIds(new Set());
-  };
-
-  // Forward approval to another profile
-  const handleForward = async (approvalId: string) => {
-    try {
-      const { supabase } = await import("@/integrations/supabase/client");
-      // Get all profiles
-      const { data: profiles } = await supabase.from("profiles").select("user_id, display_name");
-      const { user } = await import("@/contexts/AuthContext").then(m => m.useAuth ? { user: null } : { user: null });
-      // Find the other profile (not current user)
-      const currentUserId = (await supabase.auth.getUser()).data.user?.id;
-      const otherProfile = (profiles ?? []).find((p: any) => p.user_id !== currentUserId);
-      if (!otherProfile) return;
-      await supabase.from("approvals").update({ profile_id: otherProfile.user_id }).eq("id", approvalId);
-      await supabase.from("notifications").insert({
-        profile_id: otherProfile.user_id,
-        title: "Approval forwarded to you",
-        body: "An approval has been forwarded to you for review.",
-        category: "approval",
-      });
-      const { toast } = await import("sonner");
-      toast.success(`Forwarded to ${otherProfile.display_name || "other founder"}`);
-    } catch { /* ignore */ }
-  };
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -231,85 +158,51 @@ export function ApprovalsView() {
         </div>
       </div>
 
-      {/* SLA Metrics Bar */}
-      {showSLA && (
-        <div className="flex gap-4 p-3 rounded-xl bg-card border border-border">
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Avg Resolution</p>
-            <p className="text-lg font-bold font-mono">{avgResolutionMin}m</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Approval Rate</p>
-            <p className="text-lg font-bold font-mono">{resolvedApprovals.length > 0 ? Math.round(resolvedApprovals.filter(a => a.status === "approved").length / resolvedApprovals.length * 100) : 0}%</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Total Resolved</p>
-            <p className="text-lg font-bold font-mono">{resolvedApprovals.length}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Timed Out</p>
-            <p className="text-lg font-bold font-mono text-destructive">{timedOutCount}</p>
-          </div>
-        </div>
-      )}
-
       {/* Filters */}
-      <div className="flex flex-wrap gap-2 items-center">
+      <div className="flex flex-wrap gap-2">
         <div className="flex items-center gap-1.5">
           <Filter className="w-4 h-4 text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground">Status:</span>
+          <span className="text-xs font-medium text-muted-foreground">
+            Status:
+          </span>
         </div>
-        {(["all", "pending", "approved", "rejected", "timeout"] as const).map((s) => (
-          <button key={s} onClick={() => setStatusFilter(s)}
-            className={cn("px-3 py-1 rounded-full text-xs font-medium transition-all duration-200", statusFilter === s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
-            {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
-          </button>
-        ))}
+        {(["all", "pending", "approved", "rejected", "timeout"] as const).map(
+          (s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={cn(
+                "px-3 py-1 rounded-full text-xs font-medium transition-colors",
+                statusFilter === s
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              {s === "all" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
+            </button>
+          )
+        )}
 
         <div className="w-px h-6 bg-border mx-1" />
-        <span className="text-xs font-medium text-muted-foreground">Tier:</span>
+
+        <span className="text-xs font-medium text-muted-foreground self-center">
+          Tier:
+        </span>
         {(["all", 1, 2, 3] as const).map((t) => (
-          <button key={t} onClick={() => setTierFilter(t)}
-            className={cn("px-3 py-1 rounded-full text-xs font-medium transition-all duration-200", tierFilter === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80")}>
+          <button
+            key={t}
+            onClick={() => setTierFilter(t)}
+            className={cn(
+              "px-3 py-1 rounded-full text-xs font-medium transition-colors",
+              tierFilter === t
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            )}
+          >
             {t === "all" ? "All" : `Tier ${t}`}
           </button>
         ))}
-
-        {actionTypes.length > 0 && (
-          <>
-            <div className="w-px h-6 bg-border mx-1" />
-            <span className="text-xs font-medium text-muted-foreground">Type:</span>
-            <select value={actionTypeFilter} onChange={e => setActionTypeFilter(e.target.value)}
-              className="px-2 py-1 rounded-lg border border-border bg-card text-xs">
-              <option value="all">All Types</option>
-              {actionTypes.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </>
-        )}
-
-        <div className="ml-auto flex gap-1">
-          <button onClick={() => setShowSLA(!showSLA)}
-            className={cn("p-1.5 rounded-lg transition-all duration-200", showSLA ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted")}
-            title="Toggle SLA metrics">
-            <BarChart3 className="w-4 h-4" />
-          </button>
-        </div>
       </div>
-
-      {/* Bulk Action Bar */}
-      {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
-          <span className="text-xs font-medium text-foreground">{selectedIds.size} selected</span>
-          <button onClick={handleBulkApprove} className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 text-xs font-medium hover:bg-emerald-500/20 transition-all duration-200">Approve All</button>
-          <button onClick={handleBulkReject} className="px-3 py-1.5 rounded-lg bg-destructive/10 text-destructive text-xs font-medium hover:bg-destructive/20 transition-all duration-200">Reject All</button>
-          <button onClick={() => setSelectedIds(new Set())} className="text-xs text-muted-foreground hover:text-foreground ml-auto transition-all duration-200">Clear</button>
-        </div>
-      )}
-      {selectedIds.size === 0 && pending > 1 && (
-        <button onClick={selectAllPending} className="text-xs text-muted-foreground hover:text-foreground transition-all duration-200">
-          Select all pending ({pending})
-        </button>
-      )}
 
       {/* Empty State */}
       {filtered.length === 0 && (
@@ -347,14 +240,6 @@ export function ApprovalsView() {
               )}
             >
               <div className="flex items-start justify-between gap-3">
-                {/* Bulk selection checkbox */}
-                {item.status === "pending" && !item.timedOut && (
-                  <button onClick={() => toggleSelect(item.id)} className="mt-1 shrink-0">
-                    {selectedIds.has(item.id)
-                      ? <CheckSquare className="w-4 h-4 text-primary" />
-                      : <Square className="w-4 h-4 text-muted-foreground hover:text-foreground transition-all duration-200" />}
-                  </button>
-                )}
                 <div className="flex-1 min-w-0 space-y-1.5">
                   {/* Badges Row */}
                   <div className="flex flex-wrap items-center gap-2">
@@ -398,24 +283,17 @@ export function ApprovalsView() {
                     <>
                       <button
                         onClick={() => approve(item.id)}
-                        className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all duration-200"
+                        className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors"
                         title="Approve"
                       >
                         <CheckCircle2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => reject(item.id)}
-                        className="p-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-all duration-200"
+                        className="p-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
                         title="Reject"
                       >
                         <XCircle className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleForward(item.id)}
-                        className="p-1.5 rounded-lg bg-accent/10 text-accent hover:bg-accent/20 transition-all duration-200"
-                        title="Forward to other founder"
-                      >
-                        <Forward className="w-4 h-4" />
                       </button>
                     </>
                   )}
@@ -471,11 +349,11 @@ export function ApprovalsView() {
                               ? "bg-primary/10 text-foreground ml-4"
                               : "bg-muted text-foreground mr-4"
                           )}>
-                            <span className="font-semibold text-xs uppercase text-muted-foreground">
+                            <span className="font-semibold text-[10px] uppercase text-muted-foreground">
                               {m.role === "approver" ? "You" : "Agent"}
                             </span>
                             <p className="mt-0.5">{m.content}</p>
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-[9px] text-muted-foreground">
                               {new Date(m.timestamp).toLocaleTimeString()}
                             </span>
                           </div>
@@ -488,7 +366,7 @@ export function ApprovalsView() {
                   {item.status === "pending" && (
                     <button
                       onClick={() => setClarifyApprovalId(item.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground transition-all duration-200"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground transition-colors"
                     >
                       <MessageCircle className="w-3.5 h-3.5" />
                       Ask Clarification

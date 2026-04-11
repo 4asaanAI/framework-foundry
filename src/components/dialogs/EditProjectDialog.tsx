@@ -163,7 +163,7 @@ export function EditProjectDialog({ open, onOpenChange, project }: Props) {
           <TabsContent value="kb" className="space-y-4 py-2">
             <div className="flex items-center justify-between">
               <Label>Knowledge Base Files</Label>
-              <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium cursor-pointer hover:bg-primary/90 transition-all duration-200">
+              <label className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium cursor-pointer hover:bg-primary/90 transition-colors">
                 <Upload className="h-3.5 w-3.5" />
                 {uploading ? "Uploading..." : "Upload File"}
                 <input type="file" multiple className="hidden" accept=".pdf,.txt,.md,.json,.csv,.docx,.doc"
@@ -177,7 +177,7 @@ export function EditProjectDialog({ open, onOpenChange, project }: Props) {
                     <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium truncate">{kb.filename}</p>
-                      <p className="text-xs text-muted-foreground">{(kb.file_size / 1024).toFixed(1)} KB</p>
+                      <p className="text-[10px] text-muted-foreground">{(kb.file_size / 1024).toFixed(1)} KB</p>
                     </div>
                     <button onClick={() => handleDeleteKb(kb.id)} className="p-1 rounded hover:bg-destructive/10 text-destructive/60 hover:text-destructive">
                       <X className="h-3.5 w-3.5" />
@@ -198,15 +198,15 @@ export function EditProjectDialog({ open, onOpenChange, project }: Props) {
                   className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-left transition-colors ${
                     assignedIds.has(agent.id) ? "bg-primary/10 border border-primary/30" : "hover:bg-card border border-transparent"
                   }`}>
-                  <div className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold"
+                  <div className="w-6 h-6 rounded flex items-center justify-center text-[9px] font-bold"
                     style={{ backgroundColor: agent.avatar_color + "20", color: agent.avatar_color }}>
                     {agent.avatar_initials}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium">{agent.name}</p>
-                    <p className="text-xs text-muted-foreground">{agent.canonical_role}</p>
+                    <p className="text-[10px] text-muted-foreground">{agent.canonical_role}</p>
                   </div>
-                  {assignedIds.has(agent.id) && <span className="text-xs text-primary font-medium">Assigned</span>}
+                  {assignedIds.has(agent.id) && <span className="text-[10px] text-primary font-medium">Assigned</span>}
                 </button>
               ))}
             </div>

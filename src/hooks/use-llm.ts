@@ -32,18 +32,10 @@ export function useSaveLLMConfig() {
 
   return useMutation({
     mutationFn: async (config: LLMConfig) => {
-      // Encrypt API key before storing
-      let encryptedApiKey = config.apiKey;
-      if (config.apiKey) {
-        try {
-          const { encryptValue } = await import("@/lib/encryption");
-          encryptedApiKey = await encryptValue(config.apiKey);
-        } catch { /* encryption unavailable — store as-is */ }
-      }
       const pairs = [
         { key: "llm_provider", value: config.provider },
         { key: "llm_model", value: config.model },
-        { key: "llm_api_key", value: encryptedApiKey },
+        { key: "llm_api_key", value: config.apiKey },
         { key: "llm_base_url", value: config.baseUrl },
       ];
       for (const p of pairs) {

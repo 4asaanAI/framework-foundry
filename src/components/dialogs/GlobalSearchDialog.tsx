@@ -6,11 +6,7 @@ import { useSkills } from "@/hooks/use-skills";
 import { useConnectors } from "@/hooks/use-connectors";
 import { usePlugins } from "@/hooks/use-plugins";
 import { useConversations } from "@/hooks/use-conversations";
-import { useTasks } from "@/hooks/use-tasks";
-import { Bot, FolderKanban, Wrench, Plug, Puzzle, MessageSquare, Settings, History, CheckSquare, Brain, LayoutDashboard, Shield, Kanban, Clock } from "lucide-react";
-
-const RECENT_SEARCHES_KEY = "layaa_recent_searches";
-const MAX_RECENT = 5;
+import { Bot, FolderKanban, Wrench, Plug, Puzzle, MessageSquare, Settings, History } from "lucide-react";
 
 interface GlobalSearchDialogProps {
   open: boolean;
@@ -26,21 +22,8 @@ export function GlobalSearchDialog({ open, onOpenChange, onNavigate, onAgentClic
   const { data: connectors } = useConnectors();
   const { data: plugins } = usePlugins();
   const { data: conversations } = useConversations();
-  const { data: tasks } = useTasks();
-  const [scope, setScope] = useState("all");
-  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || "[]"); } catch { return []; }
-  });
 
-  const saveRecentSearch = (query: string) => {
-    if (!query.trim()) return;
-    const updated = [query, ...recentSearches.filter(s => s !== query)].slice(0, MAX_RECENT);
-    setRecentSearches(updated);
-    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
-  };
-
-  const handleSelect = (type: string, id?: string, searchQuery?: string) => {
-    if (searchQuery) saveRecentSearch(searchQuery);
+  const handleSelect = (type: string, id?: string) => {
     onOpenChange(false);
     if (type === "agent" && id && onAgentClick) {
       onAgentClick(id);
@@ -51,60 +34,25 @@ export function GlobalSearchDialog({ open, onOpenChange, onNavigate, onAgentClic
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
-      <CommandInput placeholder="Search agents, projects, chats, tasks, skills..." />
-      {/* Scope filter */}
-      <div className="flex gap-1 px-3 py-1.5 border-b border-border overflow-x-auto">
-        {[
-          { id: "all", label: "All" },
-          { id: "agents", label: "Agents" },
-          { id: "tasks", label: "Tasks" },
-          { id: "projects", label: "Projects" },
-          { id: "conversations", label: "Chats" },
-          { id: "skills", label: "Skills" },
-        ].map(s => (
-          <button key={s.id} onClick={() => setScope(s.id)}
-            className={`px-2 py-0.5 rounded-full text-xs font-medium transition-all duration-200 shrink-0 ${scope === s.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}>
-            {s.label}
-          </button>
-        ))}
-      </div>
+      <CommandInput placeholder="Search agents, projects, chats, skills, settings..." />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
 
-        {/* Recent searches */}
-        {recentSearches.length > 0 && scope === "all" && (
-          <CommandGroup heading="Recent">
-            {recentSearches.map((q, i) => (
-              <CommandItem key={i} onSelect={() => {}}>
-                <Clock className="mr-2 h-4 w-4 text-muted-foreground" />
-                <span className="text-xs">{q}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
-
         {/* Quick navigation */}
         <CommandGroup heading="Navigate">
-          {[
-            { id: "chat", label: "Chat", icon: MessageSquare },
-            { id: "sage", label: "Sage Memory", icon: Brain },
-            { id: "agents", label: "Agents", icon: Bot },
-            { id: "projects", label: "Projects", icon: FolderKanban },
-            { id: "tasks", label: "Tasks", icon: CheckSquare },
-            { id: "crm", label: "CRM Board", icon: Kanban },
-            { id: "insights", label: "Dashboard & Analytics", icon: LayoutDashboard },
-            { id: "approvals", label: "Approvals", icon: Shield },
-            { id: "settings", label: "Settings", icon: Settings },
-          ].map(v => (
-            <CommandItem key={v.id} onSelect={() => handleSelect(v.id)}>
-              <v.icon className="mr-2 h-4 w-4" />
-              <span>{v.label}</span>
+          {["Chat", "Agents", "Projects", "Tasks", "Dashboard", "Approvals", "Settings"].map(v => (
+            <CommandItem key={v} onSelect={() => handleSelect(v.toLowerCase())}>
+              {v === "Chat" && <MessageSquare className="mr-2 h-4 w-4" />}
+              {v === "Agents" && <Bot className="mr-2 h-4 w-4" />}
+              {v === "Projects" && <FolderKanban className="mr-2 h-4 w-4" />}
+              {v === "Settings" && <Settings className="mr-2 h-4 w-4" />}
+              <span>{v}</span>
             </CommandItem>
           ))}
         </CommandGroup>
 
         {/* Agents */}
-        {agents && agents.length > 0 && (scope === "all" || scope === "agents") && (
+        {agents && agents.length > 0 && (
           <CommandGroup heading="Agents">
             {agents.map(a => (
               <CommandItem key={a.id} onSelect={() => handleSelect("agent", a.id)}>
@@ -117,7 +65,7 @@ export function GlobalSearchDialog({ open, onOpenChange, onNavigate, onAgentClic
         )}
 
         {/* Projects */}
-        {projects && projects.length > 0 && (scope === "all" || scope === "projects") && (
+        {projects && projects.length > 0 && (
           <CommandGroup heading="Projects">
             {projects.map(p => (
               <CommandItem key={(p as any).project_id ?? (p as any).id} onSelect={() => handleSelect("projects")}>
@@ -129,7 +77,7 @@ export function GlobalSearchDialog({ open, onOpenChange, onNavigate, onAgentClic
         )}
 
         {/* Chat History */}
-        {conversations && conversations.length > 0 && (scope === "all" || scope === "conversations") && (
+        {conversations && conversations.length > 0 && (
           <CommandGroup heading="Chat History">
             {conversations.slice(0, 15).map((c: any) => {
               const agentInfo = c.agents;
@@ -137,7 +85,7 @@ export function GlobalSearchDialog({ open, onOpenChange, onNavigate, onAgentClic
                 <CommandItem key={c.id} onSelect={() => handleSelect("chat", c.agent_id)}>
                   <History className="mr-2 h-4 w-4 shrink-0" />
                   <span className="text-left truncate flex-1">{c.title}</span>
-                  <span className="ml-auto text-xs text-muted-foreground text-right shrink-0">
+                  <span className="ml-auto text-[10px] text-muted-foreground text-right shrink-0">
                     {agentInfo?.name || "Agent"}
                   </span>
                 </CommandItem>
@@ -146,21 +94,8 @@ export function GlobalSearchDialog({ open, onOpenChange, onNavigate, onAgentClic
           </CommandGroup>
         )}
 
-        {/* Tasks */}
-        {tasks && tasks.length > 0 && (scope === "all" || scope === "tasks") && (
-          <CommandGroup heading="Tasks">
-            {tasks.slice(0, 10).map((t: any) => (
-              <CommandItem key={t.id} onSelect={() => handleSelect("tasks")}>
-                <CheckSquare className="mr-2 h-4 w-4" />
-                <span className="truncate flex-1">{t.title}</span>
-                <span className="ml-auto text-xs text-muted-foreground">{t.status}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
-
         {/* Skills */}
-        {skills && skills.length > 0 && (scope === "all" || scope === "skills") && (
+        {skills && skills.length > 0 && (
           <CommandGroup heading="Skills">
             {skills.slice(0, 10).map(s => (
               <CommandItem key={s.id} onSelect={() => handleSelect("settings")}>
