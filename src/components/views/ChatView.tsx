@@ -793,55 +793,116 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  // Split screen is handled by AppShell via onDelegation callback, not here
  const hasSplitScreen = false;
 
+ // Runnable languages for code execution
+ const RUNNABLE_LANGS = ["javascript", "js", "node", "nodejs", "typescript", "ts", "python", "py", "python3"];
+ const [codeOutputs, setCodeOutputs] = useState<Record<string, { stdout: string; stderr: string; exitCode: number; loading?: boolean }>>({});
+
+ const handleRunCode = async (code: string, language: string) => {
+   const key = `${language}:${code.slice(0, 60)}`;
+   setCodeOutputs(prev => ({ ...prev, [key]: { stdout: "", stderr: "", exitCode: -1, loading: true } }));
+   try {
+     const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/execute-code`, {
+       method: "POST",
+       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+       body: JSON.stringify({ language, code }),
+     });
+     const data = await res.json();
+     if (!res.ok) {
+       setCodeOutputs(prev => ({ ...prev, [key]: { stdout: "", stderr: data.error || "Execution failed", exitCode: 1, loading: false } }));
+     } else {
+       setCodeOutputs(prev => ({ ...prev, [key]: { stdout: data.stdout, stderr: data.stderr, exitCode: data.exitCode, loading: false } }));
+     }
+   } catch (err: any) {
+     setCodeOutputs(prev => ({ ...prev, [key]: { stdout: "", stderr: err.message, exitCode: 1, loading: false } }));
+   }
+ };
+
  // Custom code block renderer for artifact panel support
  const CodeBlock = ({ className, children }: { className?: string; children?: React.ReactNode }) => {
- const code = String(children ?? "").replace(/\n$/, "");
- const language = className?.replace("language-", "") || "";
- const lineCount = code.split("\n").length;
- const isThinking = language === "thinking";
- const isLong = lineCount > 30;
+  const code = String(children ?? "").replace(/\n$/, "");
+  const language = className?.replace("language-", "") || "";
+  const lineCount = code.split("\n").length;
+  const isThinking = language === "thinking";
+  const isLong = lineCount > 30;
+  const isRunnable = RUNNABLE_LANGS.includes(language.toLowerCase());
+  const outputKey = `${language}:${code.slice(0, 60)}`;
+  const output = codeOutputs[outputKey];
 
- // Thinking blocks render as collapsible
- if (isThinking) {
- return (
- <details className="my-2 rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
- <summary className="px-3 py-2 text-xs font-medium text-primary cursor-pointer flex items-center gap-1.5">
- <Brain className="h-3 w-3" /> Agent thinking
- </summary>
- <pre className="px-3 py-2 text-xs text-muted-foreground whitespace-pre-wrap border-t border-primary/10">{code}</pre>
- </details>
- );
- }
+  // Thinking blocks render as collapsible
+  if (isThinking) {
+  return (
+  <details className="my-2 rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
+  <summary className="px-3 py-2 text-xs font-medium text-primary cursor-pointer flex items-center gap-1.5">
+  <Brain className="h-3 w-3" /> Agent thinking
+  </summary>
+  <pre className="px-3 py-2 text-xs text-muted-foreground whitespace-pre-wrap border-t border-primary/10">{code}</pre>
+  </details>
+  );
+  }
 
- // Long code blocks get artifact panel button
- if (isLong) {
- return (
- <div className="my-2 rounded-lg border border-border bg-muted/30 overflow-hidden">
- <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted/50">
- <span className="text-xs text-muted-foreground font-mono">{language || "code"} · {lineCount} lines</span>
- <div className="flex items-center gap-1">
- <button onClick={() => { navigator.clipboard.writeText(code); toast.success("Copied"); }} className="text-xs text-muted-foreground hover:text-foreground px-2 py-0.5 rounded hover:bg-muted transition-all duration-200">Copy</button>
- <button onClick={() => setArtifactContent({ code, language })} className="text-xs text-primary hover:text-primary/80 px-2 py-0.5 rounded hover:bg-primary/10 transition-all duration-200 flex items-center gap-1">
- <Maximize2 className="h-3 w-3" /> Open panel
- </button>
- </div>
- </div>
- <pre className="px-3 py-2 text-xs overflow-x-auto max-h-[200px] overflow-y-auto"><code>{code}</code></pre>
- </div>
- );
- }
+  const RunButton = () => isRunnable ? (
+    <button
+      onClick={() => handleRunCode(code, language)}
+      disabled={output?.loading}
+      className="text-xs text-emerald-400 hover:text-emerald-300 px-2 py-0.5 rounded hover:bg-emerald-500/10 transition-all duration-200 flex items-center gap-1 disabled:opacity-50"
+    >
+      {output?.loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+      {output?.loading ? "Running…" : "Run"}
+    </button>
+  ) : null;
 
- // Short code blocks: inline with copy button
- return (
- <div className="my-2 rounded-lg border border-border bg-muted/30 overflow-hidden">
- <div className="flex items-center justify-between px-3 py-1 border-b border-border bg-muted/50">
- <span className="text-xs text-muted-foreground font-mono">{language || "code"}</span>
- <button onClick={() => { navigator.clipboard.writeText(code); toast.success("Copied"); }} className="text-xs text-muted-foreground hover:text-foreground px-2 py-0.5 rounded hover:bg-muted transition-all duration-200">Copy</button>
- </div>
- <pre className="px-3 py-2 text-xs overflow-x-auto"><code>{code}</code></pre>
- </div>
- );
- };
+  const OutputBlock = () => output && !output.loading ? (
+    <details open className="border-t border-border">
+      <summary className="px-3 py-1.5 text-xs font-medium cursor-pointer flex items-center gap-1.5 bg-muted/30 hover:bg-muted/50 transition-colors">
+        {output.exitCode === 0 ? (
+          <span className="text-emerald-400 flex items-center gap-1"><Zap className="h-3 w-3" /> Output</span>
+        ) : (
+          <span className="text-destructive flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Error (exit {output.exitCode})</span>
+        )}
+      </summary>
+      <div className="px-3 py-2 text-xs font-mono bg-background/50 max-h-[200px] overflow-auto">
+        {output.stdout && <pre className="text-foreground whitespace-pre-wrap mb-1">{output.stdout}</pre>}
+        {output.stderr && <pre className="text-destructive/80 whitespace-pre-wrap">{output.stderr}</pre>}
+        {!output.stdout && !output.stderr && <span className="text-muted-foreground italic">No output</span>}
+      </div>
+    </details>
+  ) : null;
+
+  // Long code blocks get artifact panel button
+  if (isLong) {
+  return (
+  <div className="my-2 rounded-lg border border-border bg-muted/30 overflow-hidden">
+  <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted/50">
+  <span className="text-xs text-muted-foreground font-mono">{language || "code"} · {lineCount} lines</span>
+  <div className="flex items-center gap-1">
+  <RunButton />
+  <button onClick={() => { navigator.clipboard.writeText(code); toast.success("Copied"); }} className="text-xs text-muted-foreground hover:text-foreground px-2 py-0.5 rounded hover:bg-muted transition-all duration-200">Copy</button>
+  <button onClick={() => setArtifactContent({ code, language })} className="text-xs text-primary hover:text-primary/80 px-2 py-0.5 rounded hover:bg-primary/10 transition-all duration-200 flex items-center gap-1">
+  <Maximize2 className="h-3 w-3" /> Open panel
+  </button>
+  </div>
+  </div>
+  <pre className="px-3 py-2 text-xs overflow-x-auto max-h-[200px] overflow-y-auto"><code>{code}</code></pre>
+  <OutputBlock />
+  </div>
+  );
+  }
+
+  // Short code blocks: inline with copy + run button
+  return (
+  <div className="my-2 rounded-lg border border-border bg-muted/30 overflow-hidden">
+  <div className="flex items-center justify-between px-3 py-1 border-b border-border bg-muted/50">
+  <span className="text-xs text-muted-foreground font-mono">{language || "code"}</span>
+  <div className="flex items-center gap-1">
+  <RunButton />
+  <button onClick={() => { navigator.clipboard.writeText(code); toast.success("Copied"); }} className="text-xs text-muted-foreground hover:text-foreground px-2 py-0.5 rounded hover:bg-muted transition-all duration-200">Copy</button>
+  </div>
+  </div>
+  <pre className="px-3 py-2 text-xs overflow-x-auto"><code>{code}</code></pre>
+  <OutputBlock />
+  </div>
+  );
+  };
 
  const markdownComponents = {
  // Code blocks (handled by CodeBlock component above)
