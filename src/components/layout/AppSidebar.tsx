@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MOCK_AGENTS, TEAM_LABELS } from "@/constants/agents";
 import type { Team } from "@/types/layaa";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   MessageSquare,
@@ -271,19 +271,7 @@ export function AppSidebar({ activeView, onViewChange, onAgentClick, selectedAge
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
         {NAV_ITEMS.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => handleNavClick(item.id)}
-            className={cn(
-              "flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200",
-              (activeView === item.id || (item.id === "insights" && (activeView === "dashboard" || activeView === "analytics")))
-                ? "bg-primary/10 text-primary shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-card/60"
-            )}
-          >
-            <item.icon className="h-4 w-4 shrink-0" />
-            {item.label}
-          </button>
+          <NavItem key={item.id} item={item} activeView={activeView} onClick={() => handleNavClick(item.id)} userId={user?.id} />
         ))}
 
         {/* Chat History */}
