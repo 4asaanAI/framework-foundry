@@ -316,7 +316,7 @@ export function CustomizeView() {
  </div>
 
  {/* ───── Integrations Tab ───── */}
- <TabsContent value="integrations">
+ <TabsContent value="integrations" className="max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
  <div className="flex items-center gap-2 mb-4 flex-wrap">
  {INTEGRATION_CATEGORIES.map((cat) => (
  <button key={cat} onClick={() => setCategory(cat)}
@@ -388,7 +388,7 @@ export function CustomizeView() {
  </TabsContent>
 
  {/* ───── Skills Tab ───── */}
- <TabsContent value="skills">
+ <TabsContent value="skills" className="max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
  <div className="flex items-center gap-2 mb-4">
  <Button size="sm" onClick={() => setShowCreateSkill(true)}><Plus className="h-3.5 w-3.5 mr-1" /> Create skill</Button>
  <Button size="sm" variant="outline" onClick={async () => {
@@ -463,7 +463,7 @@ export function CustomizeView() {
  </TabsContent>
 
  {/* ───── Plugins Tab ───── */}
- <TabsContent value="plugins">
+ <TabsContent value="plugins" className="max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
  {/* Library plugins */}
  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Plugin Library</h3>
  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-6">

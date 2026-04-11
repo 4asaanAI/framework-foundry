@@ -44,9 +44,9 @@ export const MODEL_TIERS: TierDefinition[] = [
     icon: "🧠",
     color: "text-purple-500 bg-purple-500/10 border-purple-500/30",
     models: [
-      { id: "claude-opus-4-6", name: "Claude Opus 4.6", provider: "anthropic" },
       { id: "openai/gpt-5", name: "GPT-5", provider: "openai" },
       { id: "google/gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "google" },
+      { id: "google/gemini-3.1-pro-preview", name: "Gemini 3.1 Pro", provider: "google" },
     ],
     costPerToken: 0.00006, // ~$60/1M tokens blended
   },
@@ -58,9 +58,9 @@ export const MODEL_TIERS: TierDefinition[] = [
     icon: "⚡",
     color: "text-primary bg-primary/10 border-primary/30",
     models: [
-      { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6", provider: "anthropic" },
       { id: "openai/gpt-5-mini", name: "GPT-5 Mini", provider: "openai" },
       { id: "google/gemini-3-flash-preview", name: "Gemini 3 Flash", provider: "google" },
+      { id: "google/gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "google" },
     ],
     costPerToken: 0.00002, // ~$20/1M tokens blended
   },
@@ -72,7 +72,6 @@ export const MODEL_TIERS: TierDefinition[] = [
     icon: "💨",
     color: "text-success bg-success/10 border-success/30",
     models: [
-      { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", provider: "anthropic" },
       { id: "openai/gpt-5-nano", name: "GPT-5 Nano", provider: "openai" },
       { id: "google/gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite", provider: "google" },
     ],

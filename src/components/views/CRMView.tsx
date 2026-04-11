@@ -1,4 +1,5 @@
 import { useTasks } from "@/hooks/use-tasks";
+import { ProfileViewSwitcher } from "@/components/ProfileViewSwitcher";
 import { useUpdateTaskStatus } from "@/hooks/use-update-task";
 import { useAgents } from "@/hooks/use-agents";
 import { MOCK_AGENTS } from "@/constants/agents";
@@ -94,12 +95,13 @@ export function CRMView() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0 flex-wrap gap-2">
         <div>
           <h1 className="text-lg font-semibold text-foreground">CRM Board</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Kanban view of all tasks across agents</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          <ProfileViewSwitcher selected={filter === "all" ? "all" : filter} onChange={(v) => setFilter(v === "all" ? "all" : v)} />
           <select value={filter} onChange={e => setFilter(e.target.value)}
             className="px-2 py-1.5 rounded-lg bg-card border border-border text-xs text-foreground">
             <option value="all">All Agents</option>

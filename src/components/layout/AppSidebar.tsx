@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MOCK_AGENTS, TEAM_LABELS } from "@/constants/agents";
 import type { Team } from "@/types/layaa";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   MessageSquare,
@@ -214,6 +214,46 @@ function ProfileFooter() {
   );
 }
 
+function NavItem({ item, activeView, onClick, userId }: { item: typeof NAV_ITEMS[0]; activeView: string; onClick: () => void; userId?: string }) {
+  const isActive = activeView === item.id || (item.id === "insights" && (activeView === "dashboard" || activeView === "analytics"));
+
+  // Unread DM count for Messages tab
+  const { data: unreadCount } = useQuery({
+    queryKey: ["unread-dm-count", userId],
+    enabled: item.id === "messages" && !!userId,
+    refetchInterval: 5000,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("direct_messages")
+        .select("*", { count: "exact", head: true })
+        .eq("receiver_id", userId!)
+        .eq("is_read", false);
+      if (error) return 0;
+      return count || 0;
+    },
+  });
+
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200",
+        isActive
+          ? "bg-primary/10 text-primary shadow-sm"
+          : "text-muted-foreground hover:text-foreground hover:bg-card/60"
+      )}
+    >
+      <item.icon className="h-4 w-4 shrink-0" />
+      {item.label}
+      {item.id === "messages" && unreadCount && unreadCount > 0 ? (
+        <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+          {unreadCount}
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
 export function AppSidebar({ activeView, onViewChange, onAgentClick, selectedAgentId, mobileOpen, onMobileClose }: SidebarProps) {
   const { data: dbAgents } = useAgents();
   const { user } = useAuth();
@@ -271,19 +311,7 @@ export function AppSidebar({ activeView, onViewChange, onAgentClick, selectedAge
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
         {NAV_ITEMS.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => handleNavClick(item.id)}
-            className={cn(
-              "flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-xs font-medium transition-all duration-200",
-              (activeView === item.id || (item.id === "insights" && (activeView === "dashboard" || activeView === "analytics")))
-                ? "bg-primary/10 text-primary shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-card/60"
-            )}
-          >
-            <item.icon className="h-4 w-4 shrink-0" />
-            {item.label}
-          </button>
+          <NavItem key={item.id} item={item} activeView={activeView} onClick={() => handleNavClick(item.id)} userId={user?.id} />
         ))}
 
         {/* Chat History */}

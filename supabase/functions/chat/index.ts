@@ -218,6 +218,14 @@ When you learn important facts, decisions, or preferences from the conversation,
       "gemini-2.5-flash-lite": "google/gemini-2.5-flash-lite",
       "gemini-3-flash-preview": "google/gemini-3-flash-preview",
       "gemini-3.1-pro-preview": "google/gemini-3.1-pro-preview",
+      // Anthropic models not supported by Lovable AI Gateway — map to supported alternatives
+      "claude-sonnet-4-6": "google/gemini-3-flash-preview",
+      "claude-opus-4-6": "openai/gpt-5",
+      "claude-haiku-4-5": "openai/gpt-5-nano",
+      "claude-3-opus-20240229": "openai/gpt-5",
+      "claude-3-sonnet-20240229": "google/gemini-3-flash-preview",
+      "claude-3-haiku-20240307": "openai/gpt-5-nano",
+      "claude-3.5-sonnet-20241022": "google/gemini-3-flash-preview",
     };
     resolvedModel = MODEL_MAP[resolvedModel] || resolvedModel;
 
