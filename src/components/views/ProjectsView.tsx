@@ -87,12 +87,54 @@ export function ProjectsView() {
             <p className="text-sm text-muted-foreground mt-0.5">Organize work, assign agents, and manage knowledge — Layaa OS</p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleOpenFolder}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card text-sm font-medium text-foreground hover:border-primary/20 hover:shadow-sm transition-all duration-200"
-            >
-              <FolderOpen className="h-4 w-4" /> Open Folder
-            </button>
+            <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-card text-sm font-medium text-foreground hover:border-primary/20 hover:shadow-sm transition-all duration-200 cursor-pointer">
+              <FolderOpen className="h-4 w-4" /> Attach Files
+              <input
+                type="file"
+                multiple
+                // @ts-ignore — webkitdirectory enables folder selection in browsers that support it
+                webkitdirectory=""
+                className="hidden"
+                onChange={async (e) => {
+                  const files = e.target.files;
+                  if (!files || !files.length || !user) return;
+                  try {
+                    // Derive folder name from the first file's relative path
+                    const firstPath = (files[0] as any).webkitRelativePath || files[0].name;
+                    const folderName = firstPath.split("/")[0] || "Imported Folder";
+
+                    const { projectId } = await openFolderAsProject({
+                      folderPath: folderName,
+                      displayName: folderName,
+                      userId: user.id,
+                    });
+
+                    // Upload all text-based files to project_kbs for the new project
+                    const textExts = [".txt", ".md", ".json", ".csv", ".ts", ".tsx", ".js", ".jsx", ".py", ".html", ".css", ".yaml", ".yml", ".toml", ".env", ".sh"];
+                    let uploaded = 0;
+                    for (const file of Array.from(files)) {
+                      const isText = textExts.some(ext => file.name.toLowerCase().endsWith(ext));
+                      if (!isText || file.size > 500000) continue; // skip binaries and huge files
+                      try {
+                        const text = await file.text();
+                        const relPath = (file as any).webkitRelativePath || file.name;
+                        await supabase.from("project_kbs").insert({
+                          project_id: projectId,
+                          filename: relPath,
+                          content: text,
+                          file_size: file.size,
+                        });
+                        uploaded++;
+                      } catch { /* skip unreadable */ }
+                    }
+                    toast.success(`Project "${folderName}" created with ${uploaded} files imported`);
+                  } catch (err: any) {
+                    toast.error(err.message || "Failed to import folder");
+                  }
+                  e.target.value = ""; // reset input
+                }}
+              />
+            </label>
             <button
               onClick={() => setShowNew(true)}
               className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 shadow-sm transition-all duration-200"

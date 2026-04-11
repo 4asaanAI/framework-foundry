@@ -391,17 +391,27 @@ export function CustomizeView() {
  <TabsContent value="skills" className="max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
  <div className="flex items-center gap-2 mb-4">
  <Button size="sm" onClick={() => setShowCreateSkill(true)}><Plus className="h-3.5 w-3.5 mr-1" /> Create skill</Button>
- <Button size="sm" variant="outline" onClick={async () => {
- try {
- const { seedSkills } = await import("@/lib/seed");
- const result = await seedSkills();
- if (result.inserted > 0) { toast.success(`Seeded ${result.inserted} skills (${result.skipped} skipped)`); }
- else if (result.skipped > 0) { toast.info(`All ${result.skipped} skills already exist`); }
- else { toast.error("Seeding failed — database may require authentication. Go to Supabase dashboard and disable RLS on the skills table, or sign in with a valid Supabase account."); }
- qc.invalidateQueries({ queryKey: ["skills"] });
- } catch (e: any) { toast.error(`Seed failed: ${e.message}`); }
- }}><Zap className="h-3.5 w-3.5 mr-1" /> Seed 88 Skills</Button>
  <Button size="sm" variant="outline" onClick={() => setShowUploadSkill(true)}><Upload className="h-3.5 w-3.5 mr-1" /> Upload skill</Button>
+ <Button size="sm" variant="destructive" onClick={async () => {
+   try {
+     // Find duplicate skills by name and remove extras (keep earliest)
+     const allSkills = skills ?? [];
+     const seen = new Map<string, string>();
+     const dupeIds: string[] = [];
+     const sorted = [...allSkills].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+     for (const s of sorted) {
+       if (seen.has(s.name.toLowerCase())) { dupeIds.push(s.id); }
+       else { seen.set(s.name.toLowerCase(), s.id); }
+     }
+     if (dupeIds.length === 0) { toast.info("No duplicate skills found"); return; }
+     for (const id of dupeIds) {
+       await supabase.from("agent_skills").delete().eq("skill_id", id);
+       await supabase.from("skills").delete().eq("id", id);
+     }
+     toast.success(`Removed ${dupeIds.length} duplicate skills`);
+     qc.invalidateQueries({ queryKey: ["skills"] });
+   } catch (e: any) { toast.error(`Failed: ${e.message}`); }
+ }}><Trash2 className="h-3.5 w-3.5 mr-1" /> Remove Duplicates</Button>
  </div>
 
  {showCreateSkill && (
