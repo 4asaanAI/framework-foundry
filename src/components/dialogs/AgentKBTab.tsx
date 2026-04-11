@@ -115,7 +115,7 @@ export function AgentKBTab({ agentId }: AgentKBTabProps) {
             {getIcon(file.file_type)}
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-foreground truncate">{file.filename}</p>
-              <p className="text-[10px] text-muted-foreground">{(file.file_size / 1024).toFixed(1)} KB · {new Date(file.created_at).toLocaleDateString()}</p>
+              <p className="text-xs text-muted-foreground">{(file.file_size / 1024).toFixed(1)} KB · {new Date(file.created_at).toLocaleDateString()}</p>
             </div>
             <button onClick={() => handleDelete(file.id, file.filename)}
               className="p-1 rounded text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-all">

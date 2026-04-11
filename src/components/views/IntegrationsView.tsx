@@ -70,7 +70,7 @@ export function IntegrationsView() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="px-6 py-5 border-b border-border">
+      <div className="px-3 sm:px-6 py-4 sm:py-5 border-b border-border bg-background">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold text-foreground">Integrations</h1>
@@ -124,7 +124,7 @@ export function IntegrationsView() {
             return (
               <div
                 key={app.name}
-                className="rounded-xl border border-border bg-card p-4 flex flex-col gap-3 hover:border-primary/30 transition-colors"
+                className="rounded-xl border border-border bg-card p-4 flex flex-col gap-3 hover:border-primary/30 transition-all duration-200"
               >
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-sm font-bold text-muted-foreground shrink-0">
@@ -135,11 +135,11 @@ export function IntegrationsView() {
                       <h3 className="text-sm font-medium text-foreground truncate">{app.name}</h3>
                       {isConnected && <CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0" />}
                     </div>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{app.description}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{app.description}</p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between mt-auto">
-                  <Badge variant="secondary" className="text-[10px]">{app.category}</Badge>
+                  <Badge variant="secondary" className="text-xs">{app.category}</Badge>
                   {isConnected ? (
                     <Button
                       size="sm"

@@ -136,7 +136,7 @@ export function EscalationDialog({
         <DialogFooter>
           <button
             onClick={() => onOpenChange(false)}
-            className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-colors"
+            className="px-4 py-2 rounded-lg text-sm font-medium hover:bg-muted transition-all duration-200"
           >
             Cancel
           </button>

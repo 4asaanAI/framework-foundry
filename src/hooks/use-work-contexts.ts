@@ -34,9 +34,9 @@ export function useActiveContext() {
     queryKey: ["active-context", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await (supabase
+      const { data, error } = await supabase
         .from("work_contexts")
-        .select("*, projects(project_id, name, description, instructions)") as any)
+        .select("*, projects(project_id, name, description, instructions)")
         .eq("user_id", user!.id)
         .eq("is_active", true)
         .limit(1)
@@ -56,9 +56,9 @@ export function useActivateContext() {
       if (!user) throw new Error("Not authenticated");
 
       // Deactivate all current active contexts
-      await (supabase
+      await supabase
         .from("work_contexts")
-        .update({ is_active: false } as any) as any)
+        .update({ is_active: false } as any)
         .eq("user_id", user.id)
         .eq("is_active", true);
 
@@ -84,9 +84,9 @@ export function useDeactivateContext() {
   return useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Not authenticated");
-      await (supabase
+      await supabase
         .from("work_contexts")
-        .update({ is_active: false } as any) as any)
+        .update({ is_active: false } as any)
         .eq("user_id", user.id)
         .eq("is_active", true);
     },

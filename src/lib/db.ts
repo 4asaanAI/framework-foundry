@@ -162,6 +162,25 @@ export async function getAgentMemories(agentId: string, memoryType?: string): Pr
 export async function createMemory(
   agentId: string, content: string, type: string, category: string, confidence: number
 ): Promise<AgentMemory> {
+  // Sage Memory Intelligence: dedup check before insert
+  const { data: existing } = await supabase.from("agent_memories")
+    .select("id, content, confidence").eq("agent_id", agentId).eq("is_compressed", false);
+  const normalizedNew = content.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(" ");
+  const newSet = new Set(normalizedNew);
+  const duplicate = (existing ?? []).find(e => {
+    const oldSet = new Set(String(e.content).toLowerCase().replace(/[^a-z0-9\s]/g, "").split(" "));
+    let overlap = 0; for (const t of newSet) { if (oldSet.has(t)) overlap++; }
+    return (2 * overlap) / (newSet.size + oldSet.size) > 0.8;
+  });
+  if (duplicate) {
+    // Merge: bump confidence
+    const newConf = Math.min(1, Number(duplicate.confidence) + 0.05);
+    const { data, error } = await supabase.from("agent_memories")
+      .update({ confidence: newConf, last_refreshed_at: new Date().toISOString() })
+      .eq("id", duplicate.id).select("*").single();
+    if (error) throw new Error(`Failed to merge memory: ${error.message}`);
+    return data as AgentMemory;
+  }
   const { data, error } = await supabase
     .from("agent_memories")
     .insert({ agent_id: agentId, content, memory_type: type as any, category: category as any, confidence })

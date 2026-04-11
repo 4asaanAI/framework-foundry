@@ -23,7 +23,7 @@ export function OfflineIndicator() {
         {!isOffline && !isSyncing && queueCount > 0 && `⚠️ ${queueCount} items pending sync`}
       </span>
       {(isOffline || queueCount > 0) && !isSyncing && (
-        <button onClick={syncNow} className="p-1 rounded hover:bg-background/50 transition-colors" title="Sync now">
+        <button onClick={syncNow} className="p-1 rounded hover:bg-background/50 transition-all duration-200" title="Sync now">
           <RefreshCw className="h-3 w-3" />
         </button>
       )}

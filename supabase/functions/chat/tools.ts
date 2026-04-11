@@ -289,28 +289,52 @@ const TOOLS: ToolRegistryEntry[] = [
 
   {
     name: "save_memory",
-    description: "Explicitly save an important fact, decision, or preference to memory. Use when the user tells you something that should be remembered for future conversations.",
+    description: "Save an important fact, decision, preference, or constraint to Sage Memory on the Layaa OS platform. Use when the user tells you something that should be remembered across future conversations. Also use when the user says 'save this', 'remember this', or 'note this down'.",
     parameters: {
       type: "object",
       properties: {
-        content: { type: "string", description: "The fact/decision/preference to remember (one standalone sentence)" },
+        content: { type: "string", description: "The fact/decision/preference to remember (one complete standalone sentence, understandable months later)" },
         category: { type: "string", enum: ["client_info", "decision", "market_data", "process", "preference", "company", "conversation_handoff"], description: "Memory category" },
-        confidence: { type: "number", description: "Confidence level 0.0-1.0. Use 1.0 for facts stated by the user, 0.8 for inferences." },
+        memory_type: { type: "string", enum: ["preference", "decision", "constraint", "context_fact", "pattern"], description: "Classification type" },
+        confidence: { type: "number", description: "Confidence 0.0-1.0. Use 1.0 for user-stated facts, 0.8 for inferences." },
       },
       required: ["content", "category"],
     },
     tier: 1,
     handler: async (args, ctx) => {
+      // Dedup: check if a similar memory already exists
+      const { data: existing } = await ctx.supabase.from("agent_memories")
+        .select("id, content, confidence")
+        .eq("agent_id", ctx.agentId).eq("is_compressed", false);
+
+      const content = String(args.content);
+      const tokensNew = new Set(content.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(" "));
+
+      const duplicate = (existing || []).find((e: any) => {
+        const tokensOld = new Set(String(e.content).toLowerCase().replace(/[^a-z0-9\s]/g, "").split(" "));
+        let overlap = 0; for (const t of tokensNew) { if (tokensOld.has(t)) overlap++; }
+        return (2 * overlap) / (tokensNew.size + tokensOld.size) > 0.8;
+      });
+
+      if (duplicate) {
+        // Merge: bump confidence
+        const newConf = Math.min(1, Number(duplicate.confidence) + 0.05);
+        await ctx.supabase.from("agent_memories")
+          .update({ confidence: newConf, last_refreshed_at: new Date().toISOString() })
+          .eq("id", duplicate.id);
+        return { tool_call_id: "", name: "save_memory", success: true, result: `Sage updated existing memory (confidence now ${Math.round(newConf * 100)}%): "${content}"` };
+      }
+
       const { error } = await ctx.supabase.from("agent_memories").insert({
         agent_id: ctx.agentId,
-        content: String(args.content),
+        content,
         category: String(args.category),
         confidence: Number(args.confidence ?? 0.9),
         memory_type: "personal",
       });
 
       if (error) return { tool_call_id: "", name: "save_memory", success: false, result: `Failed: ${error.message}` };
-      return { tool_call_id: "", name: "save_memory", success: true, result: `Memory saved: "${args.content}" [${args.category}, ${Math.round(Number(args.confidence ?? 0.9) * 100)}%]` };
+      return { tool_call_id: "", name: "save_memory", success: true, result: `Sage saved to memory: "${content}" [${args.category}, ${Math.round(Number(args.confidence ?? 0.9) * 100)}%]` };
     },
   },
 
@@ -343,13 +367,18 @@ const TOOLS: ToolRegistryEntry[] = [
       const { data: kbDocs } = await ctx.supabase.from("agent_kbs").select("filename, content")
         .eq("agent_id", targetAgent.id).limit(3);
 
-      const memoryBlock = (memories || []).map((m: any) => `- [${m.category}] ${m.content}`).join("\n");
+      // Synthesize memories into grouped instruction format (Sage Memory Intelligence)
+      const domainMap: Record<string, string> = { decision: "Decisions", preference: "Preferences", process: "Processes", company: "Context", client_info: "Client Info", market_data: "Market", conversation_handoff: "Handoffs" };
+      const groups: Record<string, string[]> = {};
+      for (const m of (memories || [])) { const d = domainMap[m.category] || "General"; if (!groups[d]) groups[d] = []; groups[d].push(`- ${m.content}`); }
+      const memoryBlock = Object.entries(groups).map(([k, v]) => `**${k}:**\n${v.join("\n")}`).join("\n") || "No memories yet.";
       const kbBlock = (kbDocs || []).map((d: any) => `[${d.filename}] ${d.content?.slice(0, 1500)}`).join("\n---\n");
 
       const delegationPrompt = `You are ${targetAgent.name}, ${targetAgent.canonical_role}. ${targetAgent.system_prompt || ""}
 
-Your relevant memories:
-${memoryBlock || "No memories yet."}
+[SAGE MEMORY CONTEXT — LAYAA OS]
+${memoryBlock}
+[END SAGE MEMORY]
 
 Your knowledge base:
 ${kbBlock || "No KB docs."}
@@ -367,82 +396,105 @@ ${args.context ? `Context: ${args.context}` : ""}
 
 Respond directly to the task. Be concise and actionable.`;
 
-      // Call LLM for the delegated agent
-      const apiKey = Deno.env.get("LOVABLE_API_KEY");
-      if (!apiKey) return { tool_call_id: "", name: "delegate_to_agent", success: false, result: "No API key configured for delegation." };
+      // Generate delegation reasoning
+      const taskLower = String(args.task).toLowerCase();
+      const expertiseMap: Record<string, string[]> = {
+        "strategy": ["kabir"], "research": ["kshitiz"], "marketing": ["mira"], "brand": ["tara"],
+        "growth": ["zoya"], "campaign": ["nia"], "revenue": ["rishi"], "sales": ["yuvaan"],
+        "pricing": ["veer"], "compliance": ["anne"], "finance": ["aarav"], "legal": ["abhay"],
+        "regulatory": ["preeti"], "qa": ["rohit"], "automation": ["ujjawal"], "client": ["arjun"],
+        "documentation": ["arush"], "product": ["dev"],
+      };
+      const matchedExpertise = Object.keys(expertiseMap).filter(kw => taskLower.includes(kw));
+      const delegationReason = matchedExpertise.length > 0
+        ? `Delegating to ${targetAgent.name} because this involves ${matchedExpertise.slice(0, 3).join(", ")} — their area of expertise as ${targetAgent.canonical_role}.`
+        : `${targetAgent.name} (${targetAgent.canonical_role}) is the best role match for this task.`;
 
-      const llmResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [{ role: "user", content: delegationPrompt }],
-        }),
-      });
-
-      if (!llmResponse.ok) return { tool_call_id: "", name: "delegate_to_agent", success: false, result: `Delegation LLM call failed: ${llmResponse.status}` };
-
-      const llmData = await llmResponse.json();
-      const reply = llmData.choices?.[0]?.message?.content || "No response from delegated agent.";
-      const tokens = (llmData.usage?.prompt_tokens || 0) + (llmData.usage?.completion_tokens || 0);
-
-      // Create a separate delegated conversation for split-screen view
+      // Create delegated conversation for split-screen
       const { data: delegatedConv } = await ctx.supabase.from("conversations").insert({
-        agent_id: targetAgent.id,
-        profile_id: ctx.profileId,
+        agent_id: targetAgent.id, profile_id: ctx.profileId,
         title: `${ctx.agentName} → ${targetAgent.name}: ${String(args.task).slice(0, 50)}`,
       }).select("id").single();
 
       const delegatedConversationId = delegatedConv?.id;
+      if (!delegatedConversationId) return { tool_call_id: "", name: "delegate_to_agent", success: false, result: "Failed to create delegation conversation." };
 
-      // Save the delegation prompt and response in the delegated conversation
-      if (delegatedConversationId) {
-        await ctx.supabase.from("messages").insert({
-          conversation_id: delegatedConversationId,
-          role: "user",
-          content: `${ctx.agentName} asks: ${args.task}${args.context ? `\n\nContext: ${args.context}` : ""}`,
-          model: "google/gemini-3-flash-preview",
+      // Multi-turn delegation loop (up to 5 turns)
+      const MAX_TURNS = 5;
+      const apiKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!apiKey) return { tool_call_id: "", name: "delegate_to_agent", success: false, result: "No API key configured for delegation." };
+
+      // Initial message
+      await ctx.supabase.from("messages").insert({
+        conversation_id: delegatedConversationId, role: "user",
+        content: `${ctx.agentName} asks: ${args.task}${args.context ? `\n\nContext: ${args.context}` : ""}`,
+        model: "google/gemini-3-flash-preview",
+      });
+
+      let finalReply = "";
+      let totalTokens = 0;
+      const conversationMessages: { role: string; content: string }[] = [{ role: "user", content: delegationPrompt }];
+
+      for (let turn = 0; turn < MAX_TURNS; turn++) {
+        const llmResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages: conversationMessages }),
         });
+
+        if (!llmResponse.ok) break;
+
+        const llmData = await llmResponse.json();
+        const reply = llmData.choices?.[0]?.message?.content || "";
+        const turnTokens = (llmData.usage?.prompt_tokens || 0) + (llmData.usage?.completion_tokens || 0);
+        totalTokens += turnTokens;
+
+        if (reply) {
+          await ctx.supabase.from("messages").insert({
+            conversation_id: delegatedConversationId, role: "agent", content: reply,
+            mention_agent_id: targetAgent.id, model: "google/gemini-3-flash-preview",
+            tokens_in: llmData.usage?.prompt_tokens || 0, tokens_out: llmData.usage?.completion_tokens || 0,
+          });
+          finalReply = reply;
+          conversationMessages.push({ role: "assistant", content: reply });
+        }
+
+        // Check if response is complete (doesn't end with question, is substantial)
+        if (!reply.endsWith("?") && reply.length > 150) break;
+        if (turn >= MAX_TURNS - 1) break;
+
+        // Follow-up from delegating agent
+        const followUp = `${ctx.agentName}: Please provide more specific, actionable details.`;
         await ctx.supabase.from("messages").insert({
-          conversation_id: delegatedConversationId,
-          role: "agent",
-          content: reply,
-          mention_agent_id: targetAgent.id,
-          model: "google/gemini-3-flash-preview",
-          tokens_in: llmData.usage?.prompt_tokens || 0,
-          tokens_out: llmData.usage?.completion_tokens || 0,
+          conversation_id: delegatedConversationId, role: "user", content: followUp, model: "google/gemini-3-flash-preview",
         });
+        conversationMessages.push({ role: "user", content: followUp });
       }
 
-      // Also save as mention_response in the main conversation for inline display
+      // Save final response as mention_response in main conversation
       await ctx.supabase.from("messages").insert({
-        conversation_id: ctx.conversationId,
-        role: "mention_response",
-        content: reply,
-        mention_agent_id: targetAgent.id,
-        model: "google/gemini-3-flash-preview",
-        tokens_in: llmData.usage?.prompt_tokens || 0,
-        tokens_out: llmData.usage?.completion_tokens || 0,
+        conversation_id: ctx.conversationId, role: "mention_response", content: finalReply,
+        mention_agent_id: targetAgent.id, model: "google/gemini-3-flash-preview",
       });
 
       // Update target agent budget
-      if (tokens > 0) {
+      if (totalTokens > 0) {
         const { data: agentBudget } = await ctx.supabase.from("agents").select("budget_used").eq("id", targetAgent.id).single();
         if (agentBudget) {
-          await ctx.supabase.from("agents").update({ budget_used: agentBudget.budget_used + tokens }).eq("id", targetAgent.id);
+          await ctx.supabase.from("agents").update({ budget_used: agentBudget.budget_used + totalTokens }).eq("id", targetAgent.id);
         }
       }
 
       await ctx.supabase.from("audit_log").insert({
         actor_type: "agent", actor_id: ctx.agentId,
         action: "delegate_to_agent", target_table: "agents", target_id: targetAgent.id,
-        payload: { from: ctx.agentName, to: targetAgent.name, task: args.task, delegatedConversationId },
+        payload: { from: ctx.agentName, to: targetAgent.name, task: args.task, delegatedConversationId, reason: delegationReason },
       });
 
       return {
         tool_call_id: "", name: "delegate_to_agent", success: true,
-        result: `**${targetAgent.name}** (${targetAgent.canonical_role}) responded:\n\n${reply}\n\n<!--DELEGATION:${delegatedConversationId}:${targetAgent.id}:${targetAgent.name}-->`,
-        data: { agent: targetAgent.name, role: targetAgent.canonical_role, tokens, delegatedConversationId, targetAgentId: targetAgent.id },
+        result: `**${targetAgent.name}** (${targetAgent.canonical_role}) responded:\n\n${finalReply}\n\n_${delegationReason}_\n\n<!--DELEGATION:${delegatedConversationId}:${targetAgent.id}:${targetAgent.name}:${encodeURIComponent(delegationReason)}-->`,
+        data: { agent: targetAgent.name, role: targetAgent.canonical_role, tokens: totalTokens, delegatedConversationId, targetAgentId: targetAgent.id },
       };
     },
   },
@@ -525,7 +577,7 @@ Respond directly to the task. Be concise and actionable.`;
 
   {
     name: "search_memories",
-    description: "Search your memories for previously learned information. Use when you need to recall past decisions, client info, or preferences.",
+    description: "Search Sage Memory for previously learned information on the Layaa OS platform. Use when you need to recall past decisions, client info, preferences, or constraints.",
     parameters: {
       type: "object",
       properties: {
@@ -539,17 +591,25 @@ Respond directly to the task. Be concise and actionable.`;
       let query = ctx.supabase.from("agent_memories")
         .select("content, category, confidence, created_at")
         .eq("agent_id", ctx.agentId)
+        .eq("is_compressed", false)
         .ilike("content", `%${String(args.query)}%`)
         .order("confidence", { ascending: false })
-        .limit(10);
+        .limit(15);
 
       if (args.category) query = query.eq("category", String(args.category));
 
       const { data: memories } = await query;
-      if (!memories?.length) return { tool_call_id: "", name: "search_memories", success: true, result: `No memories found matching "${args.query}".` };
+      if (!memories?.length) return { tool_call_id: "", name: "search_memories", success: true, result: `No Sage memories found matching "${args.query}".` };
 
-      const results = memories.map((m: any) => `- [${m.category}] (${Math.round(m.confidence * 100)}%) ${m.content}`).join("\n");
-      return { tool_call_id: "", name: "search_memories", success: true, result: `Found ${memories.length} memories:\n${results}` };
+      // Group results by category for readability
+      const groups: Record<string, string[]> = {};
+      for (const m of memories) {
+        const label = m.category.replace(/_/g, " ");
+        if (!groups[label]) groups[label] = [];
+        groups[label].push(`- ${m.content} _(${Math.round(m.confidence * 100)}%)_`);
+      }
+      const results = Object.entries(groups).map(([cat, items]) => `**${cat}:**\n${items.join("\n")}`).join("\n\n");
+      return { tool_call_id: "", name: "search_memories", success: true, result: `Sage found ${memories.length} memories:\n\n${results}` };
     },
   },
 
@@ -595,6 +655,236 @@ Respond directly to the task. Be concise and actionable.`;
         result: `Email draft created and sent to Approvals board for your review.\n\n**To:** ${args.to}\n**Subject:** ${args.subject}\n**Preview:** ${String(args.body).slice(0, 200)}...`,
         approval_required: true, approval_id: approval?.id,
       };
+    },
+  },
+
+  // ── PROJECT FILE OPERATIONS (available to every agent when a project is active) ──
+
+  {
+    name: "list_project_files",
+    description: "List files in the active project's knowledge base on the Layaa OS platform. Use when you need to see what documents or files are available in the current project.",
+    parameters: {
+      type: "object",
+      properties: {
+        project_id: { type: "string", description: "The project ID to list files for" },
+      },
+      required: ["project_id"],
+    },
+    tier: 1,
+    handler: async (args, ctx) => {
+      const { data: files } = await ctx.supabase.from("project_knowledge")
+        .select("knowledge_id, filename, file_type, chunk_count, created_at")
+        .eq("project_id", String(args.project_id))
+        .order("created_at", { ascending: false });
+
+      if (!files?.length) return { tool_call_id: "", name: "list_project_files", success: true, result: "No files found in this project's knowledge base." };
+
+      const list = files.map((f: any) => `- **${f.filename}** (${f.file_type || "unknown"}, ${f.chunk_count || 0} chunks)`).join("\n");
+      return { tool_call_id: "", name: "list_project_files", success: true, result: `Project files (${files.length}):\n${list}` };
+    },
+  },
+
+  {
+    name: "read_project_file",
+    description: "Read the content of a file from the active project's knowledge base on Layaa OS. Use when you need to analyze, reference, or work with a specific project document.",
+    parameters: {
+      type: "object",
+      properties: {
+        project_id: { type: "string", description: "The project ID" },
+        filename: { type: "string", description: "The filename to read" },
+      },
+      required: ["project_id", "filename"],
+    },
+    tier: 1,
+    handler: async (args, ctx) => {
+      // Find the knowledge entry
+      const { data: kb } = await ctx.supabase.from("project_knowledge")
+        .select("knowledge_id, filename")
+        .eq("project_id", String(args.project_id))
+        .ilike("filename", `%${String(args.filename)}%`)
+        .limit(1)
+        .single();
+
+      if (!kb) return { tool_call_id: "", name: "read_project_file", success: false, result: `File "${args.filename}" not found in project knowledge base.` };
+
+      // Read all chunks for this file
+      const { data: chunks } = await ctx.supabase.from("project_knowledge_chunks")
+        .select("content, chunk_index")
+        .eq("knowledge_id", kb.knowledge_id)
+        .order("chunk_index", { ascending: true });
+
+      if (!chunks?.length) return { tool_call_id: "", name: "read_project_file", success: true, result: `File "${kb.filename}" exists but has no content chunks.` };
+
+      const content = chunks.map((c: any) => c.content).join("\n\n");
+      const truncated = content.slice(0, 8000);
+      return { tool_call_id: "", name: "read_project_file", success: true, result: `**${kb.filename}** (${chunks.length} chunks):\n\n${truncated}${content.length > 8000 ? "\n\n...(truncated)" : ""}` };
+    },
+  },
+
+  {
+    name: "search_project_files",
+    description: "Search across all files in the active project's knowledge base on Layaa OS. Use when looking for specific information, code, or content within project documents.",
+    parameters: {
+      type: "object",
+      properties: {
+        project_id: { type: "string", description: "The project ID" },
+        query: { type: "string", description: "Search query" },
+      },
+      required: ["project_id", "query"],
+    },
+    tier: 1,
+    handler: async (args, ctx) => {
+      const { data: chunks } = await ctx.supabase.from("project_knowledge_chunks")
+        .select("content, knowledge_id, chunk_index, project_knowledge(filename)")
+        .eq("project_id", String(args.project_id))
+        .ilike("content", `%${String(args.query)}%`)
+        .limit(5);
+
+      if (!chunks?.length) return { tool_call_id: "", name: "search_project_files", success: true, result: `No results found for "${args.query}" in project files.` };
+
+      const results = chunks.map((c: any) => {
+        const fname = c.project_knowledge?.filename || "unknown";
+        const idx = c.content.toLowerCase().indexOf(String(args.query).toLowerCase());
+        const snippet = c.content.slice(Math.max(0, idx - 100), idx + 300);
+        return `**${fname}** (chunk ${c.chunk_index}):\n...${snippet}...`;
+      }).join("\n\n---\n\n");
+
+      return { tool_call_id: "", name: "search_project_files", success: true, result: `Found ${chunks.length} matches:\n\n${results}` };
+    },
+  },
+
+  {
+    name: "save_project_memory",
+    description: "Save a fact, decision, or note to the active project's memory on Layaa OS. Use when important project-specific information should be remembered across sessions.",
+    parameters: {
+      type: "object",
+      properties: {
+        project_id: { type: "string", description: "The project ID" },
+        key: { type: "string", description: "Short label for the memory (e.g. 'tech_stack', 'budget', 'decision_auth')" },
+        value: { type: "string", description: "The full memory content (complete sentence)" },
+      },
+      required: ["project_id", "key", "value"],
+    },
+    tier: 1,
+    handler: async (args, ctx) => {
+      // Find the work context for this project
+      const { data: workCtx } = await ctx.supabase.from("work_contexts")
+        .select("context_id")
+        .eq("project_id", String(args.project_id))
+        .limit(1)
+        .maybeSingle();
+
+      if (!workCtx) return { tool_call_id: "", name: "save_project_memory", success: false, result: "No work context found for this project." };
+
+      // Dedup: check if key already exists
+      const { data: existing } = await ctx.supabase.from("context_memories")
+        .select("memory_id")
+        .eq("context_id", workCtx.context_id)
+        .eq("key", String(args.key))
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        // Update existing
+        await ctx.supabase.from("context_memories")
+          .update({ value: String(args.value), updated_at: new Date().toISOString() })
+          .eq("memory_id", existing.memory_id);
+        return { tool_call_id: "", name: "save_project_memory", success: true, result: `Updated project memory: **${args.key}** = "${args.value}"` };
+      }
+
+      // Insert new
+      const { error } = await ctx.supabase.from("context_memories").insert({
+        context_id: workCtx.context_id,
+        key: String(args.key),
+        value: String(args.value),
+        source: "agent",
+        user_id: ctx.profileId,
+      });
+
+      if (error) return { tool_call_id: "", name: "save_project_memory", success: false, result: `Failed: ${error.message}` };
+      return { tool_call_id: "", name: "save_project_memory", success: true, result: `Saved to project memory: **${args.key}** = "${args.value}"` };
+    },
+  },
+
+  // ── FILE WRITING (agent can create/write files in project) ─────────────────
+
+  {
+    name: "write_project_file",
+    description: "Create or overwrite a file in the active project on Layaa OS. Use when the user asks you to create a document, code file, config, or any file. The file is saved to the project's knowledge base and can be synced to the user's local folder.",
+    parameters: {
+      type: "object",
+      properties: {
+        project_id: { type: "string", description: "The project ID" },
+        filename: { type: "string", description: "The filename with extension (e.g. 'proposal.md', 'config.json', 'src/utils.ts')" },
+        content: { type: "string", description: "The full file content" },
+        file_type: { type: "string", description: "MIME type hint (e.g. 'text/markdown', 'application/json', 'text/typescript')" },
+      },
+      required: ["project_id", "filename", "content"],
+    },
+    tier: 1,
+    handler: async (args, ctx) => {
+      const projectId = String(args.project_id);
+      const filename = String(args.filename);
+      const content = String(args.content);
+      const fileType = String(args.file_type || "text/plain");
+
+      // Check if file already exists in project knowledge
+      const { data: existing } = await ctx.supabase.from("project_knowledge")
+        .select("knowledge_id")
+        .eq("project_id", projectId)
+        .eq("filename", filename)
+        .limit(1).maybeSingle();
+
+      if (existing) {
+        // Delete old chunks and update content
+        await ctx.supabase.from("project_knowledge_chunks").delete().eq("knowledge_id", existing.knowledge_id);
+
+        // Re-chunk the content
+        const CHUNK_SIZE = 8000;
+        const chunks: string[] = [];
+        for (let i = 0; i < content.length; i += CHUNK_SIZE - 200) {
+          chunks.push(content.slice(i, i + CHUNK_SIZE));
+        }
+
+        for (let i = 0; i < chunks.length; i++) {
+          await ctx.supabase.from("project_knowledge_chunks").insert({
+            knowledge_id: existing.knowledge_id, project_id: projectId,
+            chunk_index: i, content: chunks[i], token_estimate: Math.ceil(chunks[i].length / 4),
+          });
+        }
+
+        await ctx.supabase.from("project_knowledge").update({
+          file_size: content.length, chunk_count: chunks.length,
+        }).eq("knowledge_id", existing.knowledge_id);
+
+        return { tool_call_id: "", name: "write_project_file", success: true, result: `Updated **${filename}** in project (${chunks.length} chunks, ${content.length} chars)` };
+      }
+
+      // Create new file entry
+      const { data: newKb, error: kbErr } = await ctx.supabase.from("project_knowledge").insert({
+        project_id: projectId, filename, file_type: fileType,
+        file_size: content.length, uploaded_by: ctx.profileId,
+      }).select("knowledge_id").single();
+
+      if (kbErr || !newKb) return { tool_call_id: "", name: "write_project_file", success: false, result: `Failed to create file: ${kbErr?.message}` };
+
+      // Chunk and store content
+      const CHUNK_SIZE = 8000;
+      const chunks: string[] = [];
+      for (let i = 0; i < content.length; i += CHUNK_SIZE - 200) {
+        chunks.push(content.slice(i, i + CHUNK_SIZE));
+      }
+
+      for (let i = 0; i < chunks.length; i++) {
+        await ctx.supabase.from("project_knowledge_chunks").insert({
+          knowledge_id: newKb.knowledge_id, project_id: projectId,
+          chunk_index: i, content: chunks[i], token_estimate: Math.ceil(chunks[i].length / 4),
+        });
+      }
+
+      await ctx.supabase.from("project_knowledge").update({ chunk_count: chunks.length }).eq("knowledge_id", newKb.knowledge_id);
+
+      return { tool_call_id: "", name: "write_project_file", success: true, result: `Created **${filename}** in project (${chunks.length} chunks, ${content.length} chars). The file is available in the project workspace file tree.` };
     },
   },
 ];

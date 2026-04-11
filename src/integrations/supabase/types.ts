@@ -1592,7 +1592,6 @@ export type Database = {
           created_at: string | null
           display_name: string
           folder_path: string | null
-          is_active: boolean
           last_refresh_at: string | null
           last_used_at: string | null
           project_id: string | null
@@ -1604,7 +1603,6 @@ export type Database = {
           created_at?: string | null
           display_name: string
           folder_path?: string | null
-          is_active?: boolean
           last_refresh_at?: string | null
           last_used_at?: string | null
           project_id?: string | null
@@ -1616,7 +1614,6 @@ export type Database = {
           created_at?: string | null
           display_name?: string
           folder_path?: string | null
-          is_active?: boolean
           last_refresh_at?: string | null
           last_used_at?: string | null
           project_id?: string | null
