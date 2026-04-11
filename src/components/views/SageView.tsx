@@ -348,7 +348,7 @@ export function SageView() {
   const teamGroups = agents.reduce<Record<string, typeof agents>>((acc, agent) => {
     const team = agent.team || "other";
     if (!acc[team]) acc[team] = [];
-    acc[team].push(agent);
+    acc[team].push(agent as any);
     return acc;
   }, {});
 
