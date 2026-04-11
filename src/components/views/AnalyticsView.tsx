@@ -45,7 +45,19 @@ export function AnalyticsView() {
   };
 
   if (isLoading) {
-    return <div className="h-full flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+    return (
+      <div className="h-full overflow-y-auto px-3 sm:px-6 py-6 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[1,2,3,4].map(i => (
+            <div key={i} className="animate-pulse rounded-xl border border-border bg-card p-4 space-y-2">
+              <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-muted" /><div className="h-2.5 w-20 bg-muted rounded" /></div>
+              <div className="h-7 w-16 bg-muted rounded" />
+            </div>
+          ))}
+        </div>
+        <div className="animate-pulse rounded-xl border border-border bg-card p-5 h-64" />
+      </div>
+    );
   }
 
   const logs = usageSummary ?? [];
