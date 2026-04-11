@@ -38,7 +38,7 @@ export function useActiveContext() {
         .from("work_contexts")
         .select("*, projects(project_id, name, description, instructions)")
         .eq("user_id", user!.id)
-        .eq("is_active", true)
+        .eq("is_active" as any, true)
         .limit(1)
         .maybeSingle();
       if (error) throw error;
@@ -60,7 +60,7 @@ export function useActivateContext() {
         .from("work_contexts")
         .update({ is_active: false } as any)
         .eq("user_id", user.id)
-        .eq("is_active", true);
+        .eq("is_active" as any, true);
 
       // Activate the selected context
       const { error } = await supabase
@@ -88,7 +88,7 @@ export function useDeactivateContext() {
         .from("work_contexts")
         .update({ is_active: false } as any)
         .eq("user_id", user.id)
-        .eq("is_active", true);
+        .eq("is_active" as any, true);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["work-contexts"] });
