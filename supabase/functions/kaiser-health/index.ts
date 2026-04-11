@@ -113,8 +113,7 @@ serve(async (req) => {
         }
       }
     }
-    }
-    results.budget_warnings = warningAgents.map(a => a.name);
+    results.budget_warnings = warningAgents;
 
     // 4. Check message queue health (pending conversations)
     const { count: pendingCount } = await supabase.from("conversations")
