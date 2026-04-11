@@ -229,6 +229,8 @@ export function ApprovalsView() {
               total
             </p>
         </div>
+        </div>
+        <ProfileViewSwitcher selected={profileFilter} onChange={setProfileFilter} />
       </div>
 
       {/* SLA Metrics Bar */}
