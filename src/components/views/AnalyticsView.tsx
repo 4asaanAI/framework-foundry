@@ -189,6 +189,9 @@ export function AnalyticsView() {
             <button onClick={handleCSVExport} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card text-xs font-medium text-muted-foreground hover:text-foreground transition-all duration-200">
               <Download className="h-3.5 w-3.5" /> CSV
             </button>
+            <button onClick={resetLayout} className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border bg-card text-xs font-medium text-muted-foreground hover:text-foreground transition-all duration-200" title="Reset widget layout">
+              <RotateCcw className="h-3.5 w-3.5" /> Reset
+            </button>
           </div>
         </div>
       </div>
