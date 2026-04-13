@@ -1,23 +1,26 @@
 // src/components/views/SplitScreenView.tsx
 // Zoom/Meet-style grid layout for multi-agent delegation conversations
+// Users can participate directly in delegated agent conversations
 
 import { useState, useEffect, useRef } from "react";
 import { useMessages } from "@/hooks/use-conversations";
 import { useAgent } from "@/hooks/use-agents";
-import { X, Pin, PinOff, Star, Loader2, Maximize2, Minimize2 } from "lucide-react";
+import { X, Pin, PinOff, Star, Loader2, Maximize2, Minimize2, Send, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 import ReactMarkdown from "react-markdown";
+import { toast } from "sonner";
 
 export interface DelegationPanel {
-  id: string; // unique panel id
+  id: string;
   delegatedConversationId: string;
   delegatingAgentName: string;
   delegatedAgentId: string;
   isPinned: boolean;
   isMain: boolean;
-  delegationReason?: string; // why this agent was chosen
+  delegationReason?: string;
 }
 
 interface SplitScreenViewProps {
@@ -28,6 +31,8 @@ interface SplitScreenViewProps {
   mainAgentName: string;
   mainConversationId: string;
 }
+
+// ─── Agent Panel with User Input ───
 
 function AgentPanel({
   panel,
@@ -44,9 +49,14 @@ function AgentPanel({
 }) {
   const { data: messages, isLoading } = useMessages(panel.delegatedConversationId);
   const { data: delegatedAgent } = useAgent(panel.delegatedAgentId);
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [expanded, setExpanded] = useState(false);
+  const [userInput, setUserInput] = useState("");
+  const [sendingInput, setSendingInput] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
 
   const delegatedAgentName = delegatedAgent?.name ?? "Agent";
 
@@ -73,6 +83,72 @@ function AgentPanel({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Detect if conversation is awaiting user input (last message is a question from agent)
+  const lastMessage = messages?.[messages.length - 1];
+  const isAwaitingInput = lastMessage?.role === "agent" && lastMessage.content?.trim().endsWith("?");
+
+  // Detect completion (agent gave substantial non-question answer after at least 2 messages)
+  useEffect(() => {
+    if (messages && messages.length >= 2) {
+      const last = messages[messages.length - 1];
+      if (last.role === "agent" && !last.content?.trim().endsWith("?") && last.content.length > 100) {
+        setIsComplete(true);
+      }
+    }
+  }, [messages]);
+
+  // Send user message directly to this delegated conversation
+  const handleSendUserMessage = async () => {
+    if (!userInput.trim() || sendingInput || !user) return;
+    setSendingInput(true);
+    try {
+      await supabase.from("messages").insert({
+        conversation_id: panel.delegatedConversationId,
+        role: "user" as const,
+        content: `[You]: ${userInput.trim()}`,
+        model: delegatedAgent?.default_model || "google/gemini-3-flash-preview",
+      });
+      queryClient.invalidateQueries({ queryKey: ["messages", panel.delegatedConversationId] });
+      setUserInput("");
+      setIsComplete(false);
+
+      // Call the delegated agent to respond to user input
+      const resp = await supabase.functions.invoke("delegate-task", {
+        body: {
+          fromAgentId: panel.delegatedAgentId, // self-delegation for user follow-up
+          toAgentId: panel.delegatedAgentId,
+          task: `The user (human founder) is now speaking directly to you in this conversation. They said: "${userInput.trim()}". Respond to them directly and helpfully.`,
+          conversationId: panel.delegatedConversationId,
+          profileId: user.id,
+        },
+      });
+      
+      if (resp.error) {
+        console.error("Panel response error:", resp.error);
+      }
+      queryClient.invalidateQueries({ queryKey: ["messages", panel.delegatedConversationId] });
+    } catch (e) {
+      console.error("Panel send error:", e);
+      toast.error("Failed to send message");
+    } finally {
+      setSendingInput(false);
+    }
+  };
+
+  // Get message attribution
+  const getMessageLabel = (msg: any) => {
+    if (msg.content?.startsWith("[You]:")) return "You";
+    if (msg.role === "user") return panel.delegatingAgentName;
+    if (msg.role === "agent" || msg.role === "mention_response") return delegatedAgentName;
+    return msg.role;
+  };
+
+  const getDisplayContent = (msg: any) => {
+    // Strip [You]: prefix for display
+    if (msg.content?.startsWith("[You]: ")) return msg.content.slice(7);
+    return msg.content;
+  };
 
   return (
     <div
@@ -103,6 +179,16 @@ function AgentPanel({
               </div>
             )}
           </div>
+          {isComplete && (
+            <span className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-semibold shrink-0">
+              <CheckCircle2 className="w-3 h-3" /> Done
+            </span>
+          )}
+          {isAwaitingInput && !isComplete && (
+            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 font-semibold shrink-0 animate-pulse">
+              Awaiting your input
+            </span>
+          )}
           {panel.isMain && (
             <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary font-semibold shrink-0">MAIN</span>
           )}
@@ -111,32 +197,16 @@ function AgentPanel({
           )}
         </div>
         <div className="flex items-center gap-0.5 shrink-0">
-          <button
-            onClick={onSetMain}
-            className={cn("p-1 rounded hover:bg-muted transition-all duration-200", panel.isMain ? "text-primary" : "text-muted-foreground")}
-            title="Set as main"
-          >
+          <button onClick={onSetMain} className={cn("p-1 rounded hover:bg-muted transition-all duration-200", panel.isMain ? "text-primary" : "text-muted-foreground")} title="Set as main">
             <Star className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={onPin}
-            className={cn("p-1 rounded hover:bg-muted transition-all duration-200", panel.isPinned ? "text-warning" : "text-muted-foreground")}
-            title={panel.isPinned ? "Unpin" : "Pin"}
-          >
+          <button onClick={onPin} className={cn("p-1 rounded hover:bg-muted transition-all duration-200", panel.isPinned ? "text-warning" : "text-muted-foreground")} title={panel.isPinned ? "Unpin" : "Pin"}>
             {panel.isPinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
           </button>
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground"
-            title={expanded ? "Minimize" : "Expand"}
-          >
+          <button onClick={() => setExpanded(!expanded)} className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground" title={expanded ? "Minimize" : "Expand"}>
             {expanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive"
-            title="Close"
-          >
+          <button onClick={onClose} className="p-1 rounded hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive" title="Close">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -149,34 +219,44 @@ function AgentPanel({
             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          (messages ?? []).map((msg) => (
-            <div
-              key={msg.id}
-              className={cn(
-                "flex flex-col gap-0.5 max-w-[90%]",
-                msg.role === "user" ? "ml-auto items-end" : "mr-auto items-start"
-              )}
-            >
-              <span className="text-xs text-muted-foreground font-medium">
-                {msg.role === "user" ? panel.delegatingAgentName : delegatedAgentName}
-              </span>
+          (messages ?? []).map((msg) => {
+            const label = getMessageLabel(msg);
+            const isUserMessage = label === "You" || msg.role === "user";
+            const displayContent = getDisplayContent(msg);
+            return (
               <div
+                key={msg.id}
                 className={cn(
-                  "rounded-lg px-2.5 py-1.5 text-xs leading-relaxed",
-                  msg.role === "user"
-                    ? "bg-primary/10 text-foreground"
-                    : "bg-muted text-foreground"
+                  "flex flex-col gap-0.5 max-w-[90%]",
+                  label === "You" ? "ml-auto items-end" : isUserMessage ? "mr-auto items-start" : "mr-auto items-start"
                 )}
               >
-                <div className="prose prose-sm prose-invert max-w-none [&_ul]:pl-4 [&_ol]:pl-4 [&_li]:leading-relaxed [&_p]:mb-1.5 [&_p]:last:mb-0 [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-xs [&_h3]:font-semibold [&_strong]:font-semibold [&_blockquote]:border-l-2 [&_blockquote]:pl-2 [&_blockquote]:text-muted-foreground [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:bg-muted [&_code]:text-xs [&_a]:text-primary [&_a]:underline">
-                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                <span className={cn(
+                  "text-xs font-medium",
+                  label === "You" ? "text-primary" : "text-muted-foreground"
+                )}>
+                  {label === "You" ? "You (via " + panel.delegatingAgentName + ")" : label}
+                </span>
+                <div
+                  className={cn(
+                    "rounded-lg px-2.5 py-1.5 text-xs leading-relaxed",
+                    label === "You"
+                      ? "bg-primary/20 text-foreground border border-primary/30"
+                      : isUserMessage
+                        ? "bg-primary/10 text-foreground"
+                        : "bg-muted text-foreground"
+                  )}
+                >
+                  <div className="prose prose-sm prose-invert max-w-none [&_ul]:pl-4 [&_ol]:pl-4 [&_li]:leading-relaxed [&_p]:mb-1.5 [&_p]:last:mb-0 [&_h2]:text-sm [&_h2]:font-semibold [&_h3]:text-xs [&_h3]:font-semibold [&_strong]:font-semibold [&_blockquote]:border-l-2 [&_blockquote]:pl-2 [&_blockquote]:text-muted-foreground [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:bg-muted [&_code]:text-xs [&_a]:text-primary [&_a]:underline">
+                    <ReactMarkdown>{displayContent}</ReactMarkdown>
+                  </div>
                 </div>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
               </div>
-              <span className="text-xs text-muted-foreground">
-                {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            </div>
-          ))
+            );
+          })
         )}
         {(!messages || messages.length === 0) && !isLoading && (
           <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">
@@ -185,13 +265,42 @@ function AgentPanel({
         )}
       </div>
 
-      {/* Status bar */}
-      <div className="px-3 py-1.5 border-t border-border bg-muted/20 text-xs text-muted-foreground">
-        {messages?.length ?? 0} messages &bull; Auto-conversation between {panel.delegatingAgentName} and {delegatedAgentName}
+      {/* User Input Area */}
+      <div className="px-3 py-2 border-t border-border bg-muted/20">
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            type="text"
+            value={userInput}
+            onChange={(e) => setUserInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSendUserMessage(); } }}
+            placeholder={isAwaitingInput ? "Agent is waiting for your input..." : `Message ${delegatedAgentName}...`}
+            className={cn(
+              "flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all",
+              isAwaitingInput && "ring-1 ring-amber-500/50 border-amber-500/30"
+            )}
+            disabled={sendingInput}
+          />
+          <button
+            onClick={handleSendUserMessage}
+            disabled={!userInput.trim() || sendingInput}
+            className={cn(
+              "p-1.5 rounded-lg transition-all",
+              userInput.trim() ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted text-muted-foreground"
+            )}
+          >
+            {sendingInput ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+        <div className="mt-1 text-xs text-muted-foreground">
+          {messages?.length ?? 0} messages &bull; {isComplete ? "Delegation complete" : "Live conversation"}
+        </div>
       </div>
     </div>
   );
 }
+
+// ─── Split Screen Container ───
 
 export function SplitScreenView({
   panels,
@@ -201,10 +310,8 @@ export function SplitScreenView({
   mainAgentName,
   mainConversationId,
 }: SplitScreenViewProps) {
-  // Calculate grid layout based on number of panels (like Zoom)
   const panelCount = panels.length;
   const getGridClass = () => {
-    // Mobile: always 1 column. Tablet: 2. Desktop: auto based on count.
     if (panelCount === 1) return "grid-cols-1";
     if (panelCount === 2) return "grid-cols-1 sm:grid-cols-2";
     if (panelCount <= 4) return "grid-cols-1 sm:grid-cols-2";
@@ -228,7 +335,7 @@ export function SplitScreenView({
           </span>
         </div>
         <p className="text-xs text-muted-foreground">
-          Conversations stay open until you close them
+          Type in any panel to join the conversation
         </p>
       </div>
 

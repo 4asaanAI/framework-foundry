@@ -417,18 +417,25 @@ export function ChatView({ selectedAgentId, onDelegation }: ChatViewProps) {
  setCommandPickerOpen(true); setSkillPickerOpen(false); setMentionPickerOpen(false);
  } else { setCommandPickerOpen(false); }
 
- // "@" triggers mention picker ONLY if the text after @ doesn't already match a known agent name
- // (i.e., the user is still typing, not just has a completed @AgentName)
- if (lastAt >= 0 && (lastAt === 0 || textBeforeCursor[lastAt - 1] === " ")) {
- const textAfterAt = textBeforeCursor.slice(lastAt + 1);
- const isCompletedMention = agents.some(a => a.is_active && textAfterAt.startsWith(a.name + " "));
- if (isCompletedMention) {
- setMentionPickerOpen(false);
- } else {
- setMentionPickerOpen(true); setSkillPickerOpen(false); setCommandPickerOpen(false);
- }
- } else { setMentionPickerOpen(false); }
- };
+  // "@" triggers mention picker — auto-resolve when user finishes typing a known agent name
+  if (lastAt >= 0 && (lastAt === 0 || textBeforeCursor[lastAt - 1] === " ")) {
+  const textAfterAt = textBeforeCursor.slice(lastAt + 1);
+  // Case-insensitive check for completed agent name (e.g. "@ujjawal " or "@Ujjawal ")
+  const matchedAgent = agents.find(a => a.is_active && textAfterAt.toLowerCase().startsWith(a.name.toLowerCase() + " "));
+  if (matchedAgent) {
+    // Auto-resolve: strip @AgentName from message, set mentionedAgent
+    const beforeAt = val.slice(0, lastAt);
+    const afterMention = val.slice(lastAt + 1 + matchedAgent.name.length);
+    setMessage((beforeAt + afterMention).trim() || afterMention.trim());
+    setMentionedAgent(matchedAgent);
+    setMentionPickerOpen(false);
+  } else if (!mentionedAgent) {
+    setMentionPickerOpen(true); setSkillPickerOpen(false); setCommandPickerOpen(false);
+  } else {
+    setMentionPickerOpen(false);
+  }
+  } else { setMentionPickerOpen(false); }
+  };
 
  // Get currently visible picker items for keyboard nav
  const getPickerItems = () => {
