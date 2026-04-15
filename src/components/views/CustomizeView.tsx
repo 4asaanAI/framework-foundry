@@ -79,6 +79,7 @@ export function CustomizeView() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [connectorSubTab, setConnectorSubTab] = useState<"catalog" | "active">("catalog");
+  const [pluginSubTab, setPluginSubTab] = useState<"library" | "installed">("library");
   const [connectingApp, setConnectingApp] = useState<string | null>(null);
   const [showCustomDialog, setShowCustomDialog] = useState(false);
   const [showCreateSkill, setShowCreateSkill] = useState(false);
