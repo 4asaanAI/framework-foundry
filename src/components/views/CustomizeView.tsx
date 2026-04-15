@@ -447,124 +447,156 @@ export function CustomizeView() {
           {/* ═══════════════════ PLUGINS TAB ═══════════════════ */}
           <TabsContent value="plugins" className="flex-1 overflow-hidden flex flex-col min-h-0 mt-0">
             <div className="flex items-center gap-2 mb-4">
-              <Button size="sm" onClick={() => setShowCreatePlugin(true)}>
+              <button onClick={() => setPluginSubTab("library")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${pluginSubTab === "library" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+                <BookOpen className="h-3 w-3 inline mr-1" /> Library ({filteredLibPlugins.length})
+              </button>
+              <button onClick={() => setPluginSubTab("installed")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${pluginSubTab === "installed" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+                <Layers className="h-3 w-3 inline mr-1" /> Installed ({filteredPlugins.length})
+              </button>
+              <div className="flex-1" />
+              <Button size="sm" onClick={() => { setPluginSubTab("installed"); setShowCreatePlugin(true); }}>
                 <Plus className="h-3.5 w-3.5 mr-1" /> Create Plugin
               </Button>
             </div>
 
             <ScrollArea className="flex-1">
-              {/* Create plugin form */}
-              {showCreatePlugin && (
-                <div className="border border-primary/30 rounded-xl p-4 mb-4 bg-card">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold flex items-center gap-2"><Puzzle className="h-4 w-4 text-primary" /> Create Plugin</h4>
-                    <button onClick={() => setShowCreatePlugin(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Plugin ID</Label>
-                      <Input placeholder="my-plugin" value={pluginName} onChange={(e) => setPluginName(e.target.value)} className="h-8 text-xs" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Display Name</Label>
-                      <Input placeholder="My Plugin" value={pluginDisplayName} onChange={(e) => setPluginDisplayName(e.target.value)} className="h-8 text-xs" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Type</Label>
-                      <Select value={pluginType} onValueChange={setPluginType}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(PLUGIN_TYPE_LABELS).map(([k, v]) => (
-                            <SelectItem key={k} value={k}>{v.icon} {v.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5 col-span-2">
-                      <Label className="text-xs">Description & Context</Label>
-                      <Textarea placeholder="What does this plugin do? What tools does it add?" value={pluginContext} onChange={(e) => setPluginContext(e.target.value)} rows={2} className="text-xs" />
-                    </div>
-                    <div className="col-span-2">
-                      <Button size="sm" onClick={handleCreatePlugin} disabled={!pluginName}>Create</Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Plugin Library */}
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                <BookOpen className="h-3.5 w-3.5" /> Plugin Library
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-                {filteredLibPlugins.map((item) => {
-                  const installed = (plugins ?? []).some((p: any) => p.name === item.name.toLowerCase().replace(/\s+/g, "_"));
-                  const typeLabel = PLUGIN_TYPE_LABELS[item.type] || PLUGIN_TYPE_LABELS.tool;
-                  return (
-                    <div key={item.name} className={`border rounded-xl p-4 transition-colors ${installed ? "border-primary/30 bg-primary/5" : "border-border hover:border-primary/20"}`}>
-                      <div className="flex items-start gap-3 mb-2">
-                        <span className="text-2xl">{item.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <h3 className="text-sm font-medium">{item.name}</h3>
-                            {installed && <CheckCircle2 className="h-3 w-3 text-primary" />}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <Badge variant="outline" className="text-[10px]">{typeLabel.icon} {typeLabel.label}</Badge>
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground">{item.tools.length} tools</Badge>
-                        </div>
-                        {installed ? (
-                          <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20">Installed</Badge>
-                        ) : (
-                          <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => addLibraryPlugin(item)}>Install</Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Installed Plugins */}
-              {filteredPlugins.length > 0 && (
+              {pluginSubTab === "library" ? (
                 <>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                    <Layers className="h-3.5 w-3.5" /> Installed Plugins ({filteredPlugins.length})
-                  </h3>
-                  <div className="space-y-2 mb-6">
-                    {filteredPlugins.map((plugin: any) => (
-                      <div key={plugin.id} className="border border-border rounded-xl p-4 flex items-center gap-4 hover:border-primary/20 transition-colors group">
-                        <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
-                          <Puzzle className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-medium">{plugin.display_name || plugin.name}</h3>
-                            {Array.isArray(plugin.skills) && plugin.skills.length > 0 && (
-                              <Badge variant="outline" className="text-[10px]">{plugin.skills.length} tools</Badge>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground truncate">{plugin.context}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => togglePlugin(plugin.id, plugin.is_active)}
-                            className="p-1 rounded hover:bg-muted transition-colors" title={plugin.is_active ? "Disable" : "Enable"}>
-                            {plugin.is_active ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground" />}
-                          </button>
-                          <button onClick={async () => {
-                            if (!window.confirm(`Delete plugin "${plugin.display_name || plugin.name}"?`)) return;
-                            await supabase.from("plugins").delete().eq("id", plugin.id);
-                            qc.invalidateQueries({ queryKey: ["plugins"] });
-                            toast.success("Plugin removed");
-                          }} className="p-1 rounded hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </button>
-                        </div>
-                      </div>
+                  <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+                    <span className="text-xs text-muted-foreground mr-1">Types:</span>
+                    {Object.entries(PLUGIN_TYPE_LABELS).map(([key, val]) => (
+                      <span key={key} className="px-2 py-0.5 rounded-full text-[10px] bg-muted text-muted-foreground">
+                        {val.icon} {val.label}
+                      </span>
                     ))}
                   </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {filteredLibPlugins.map((item) => {
+                      const installed = (plugins ?? []).some((p: any) => p.name === item.name.toLowerCase().replace(/\s+/g, "_"));
+                      const typeLabel = PLUGIN_TYPE_LABELS[item.type] || PLUGIN_TYPE_LABELS.tool;
+                      const isPlanned = item.status === "planned";
+                      return (
+                        <div key={item.name} className={`border rounded-xl p-4 transition-all ${installed ? "border-primary/30 bg-primary/5" : isPlanned ? "border-border/50 opacity-75" : "border-border hover:border-primary/20"}`}>
+                          <div className="flex items-start gap-3 mb-2">
+                            <span className="text-2xl">{item.icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h3 className="text-sm font-medium">{item.name}</h3>
+                                {installed && <CheckCircle2 className="h-3 w-3 text-primary" />}
+                                {isPlanned && <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400">Coming Soon</Badge>}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.desc}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="outline" className="text-[10px]">{typeLabel.icon} {typeLabel.label}</Badge>
+                              <Badge variant="outline" className="text-[10px] text-muted-foreground">{item.tools.length} tools</Badge>
+                            </div>
+                            {installed ? (
+                              <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20">Installed</Badge>
+                            ) : isPlanned ? (
+                              <Badge variant="outline" className="text-[10px]">Planned</Badge>
+                            ) : (
+                              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => addLibraryPlugin(item)}>Install</Button>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-border/50">
+                            {item.tools.map(t => (
+                              <code key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{t}</code>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {showCreatePlugin && (
+                    <div className="border border-primary/30 rounded-xl p-4 mb-4 bg-card">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold flex items-center gap-2"><Puzzle className="h-4 w-4 text-primary" /> Create Plugin</h4>
+                        <button onClick={() => setShowCreatePlugin(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Plugin ID</Label>
+                          <Input placeholder="my-plugin" value={pluginName} onChange={(e) => setPluginName(e.target.value)} className="h-8 text-xs" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Display Name</Label>
+                          <Input placeholder="My Plugin" value={pluginDisplayName} onChange={(e) => setPluginDisplayName(e.target.value)} className="h-8 text-xs" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Type</Label>
+                          <Select value={pluginType} onValueChange={setPluginType}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(PLUGIN_TYPE_LABELS).map(([k, v]) => (
+                                <SelectItem key={k} value={k}>{v.icon} {v.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5 col-span-2">
+                          <Label className="text-xs">Description & Context</Label>
+                          <Textarea placeholder="What does this plugin do? What tools does it add?" value={pluginContext} onChange={(e) => setPluginContext(e.target.value)} rows={2} className="text-xs" />
+                        </div>
+                        <div className="col-span-2">
+                          <Button size="sm" onClick={handleCreatePlugin} disabled={!pluginName}>Create</Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {filteredPlugins.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Puzzle className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                      <p className="text-sm">No plugins installed yet. Browse the library to get started.</p>
+                      <Button variant="outline" size="sm" className="mt-3" onClick={() => setPluginSubTab("library")}>Browse Library</Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredPlugins.map((plugin: any) => {
+                        const toolCount = Array.isArray(plugin.skills) ? plugin.skills.length : 0;
+                        return (
+                          <div key={plugin.id} className="border border-border rounded-xl p-4 flex items-center gap-4 hover:border-primary/20 transition-colors group">
+                            <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
+                              <Puzzle className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-medium">{plugin.display_name || plugin.name}</h3>
+                                {toolCount > 0 && <Badge variant="outline" className="text-[10px]">{toolCount} tools</Badge>}
+                                <Badge variant="outline" className={`text-[10px] ${plugin.is_active ? "border-emerald-500/30 text-emerald-400" : "border-muted text-muted-foreground"}`}>
+                                  {plugin.is_active ? "Active" : "Disabled"}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate mt-0.5">{plugin.context}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => togglePlugin(plugin.id, plugin.is_active)}
+                                className="p-1 rounded hover:bg-muted transition-colors" title={plugin.is_active ? "Disable" : "Enable"}>
+                                {plugin.is_active ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground" />}
+                              </button>
+                              <button onClick={async () => {
+                                if (!window.confirm(`Delete plugin "${plugin.display_name || plugin.name}"?`)) return;
+                                await supabase.from("plugins").delete().eq("id", plugin.id);
+                                qc.invalidateQueries({ queryKey: ["plugins"] });
+                                toast.success("Plugin removed");
+                              }} className="p-1 rounded hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </>
               )}
             </ScrollArea>
