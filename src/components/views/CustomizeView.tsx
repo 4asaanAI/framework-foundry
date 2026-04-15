@@ -321,10 +321,10 @@ export function CustomizeView() {
               <Plug className="h-3.5 w-3.5" /> Connectors
               <Badge variant="secondary" className="ml-1 text-xs">{activeConnectors.length}/{INTEGRATION_APPS.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="plugins" className="gap-1.5">
-              <Puzzle className="h-3.5 w-3.5" /> Plugins
-              <Badge variant="secondary" className="ml-1 text-xs">{(plugins?.length ?? 0) + LIBRARY_PLUGINS.length}</Badge>
-            </TabsTrigger>
+             <TabsTrigger value="plugins" className="gap-1.5">
+               <Puzzle className="h-3.5 w-3.5" /> Plugins
+               <Badge variant="secondary" className="ml-1 text-xs">{plugins?.length ?? 0}</Badge>
+             </TabsTrigger>
             <TabsTrigger value="skills" className="gap-1.5">
               <Zap className="h-3.5 w-3.5" /> Skills
               <Badge variant="secondary" className="ml-1 text-xs">{skills?.length ?? 0}</Badge>
