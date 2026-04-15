@@ -34,16 +34,20 @@ const PLUGIN_TYPE_LABELS: Record<string, { label: string; icon: string }> = {
   ai_capability: { label: "AI Capability", icon: "🧠" },
 };
 
-// ─── Built-in Plugin Library (from architecture doc) ────────────────────────
+// ─── Built-in Plugin Library ────────────────────────────────────────────────
 const LIBRARY_PLUGINS = [
-  { name: "Web Search", desc: "Search the web for real-time information", icon: "🔍", type: "tool", tools: ["web_search", "search_news"] },
-  { name: "Code Interpreter", desc: "Execute Python/JS code for data analysis", icon: "🐍", type: "tool", tools: ["execute_code", "analyze_data"] },
-  { name: "PDF Generator", desc: "Convert documents to professional PDFs", icon: "📄", type: "tool", tools: ["pdf_create", "pdf_merge", "pdf_watermark"] },
-  { name: "Image Processor", desc: "Resize, crop, filter, and generate thumbnails", icon: "🖼️", type: "tool", tools: ["resize_image", "crop_image", "generate_thumbnail"] },
-  { name: "Document Parser", desc: "Extract data from PDFs, DOCX, and spreadsheets", icon: "📋", type: "ai_capability", tools: ["extract_from_pdf", "extract_tables"] },
-  { name: "Email Templates", desc: "Template emails, bulk sending, scheduling", icon: "✉️", type: "wrapper", tools: ["send_templated_email", "schedule_email"] },
-  { name: "Data Analyzer", desc: "Statistical analysis, charting, and insights", icon: "📊", type: "tool", tools: ["analyze_data", "create_chart", "generate_insights"] },
-  { name: "Audio Processor", desc: "Transcription, audio generation, summaries", icon: "🎙️", type: "ai_capability", tools: ["transcribe_audio", "extract_summary"] },
+  { name: "Web Search", desc: "Real-time web search, news, and URL content extraction for agent research", icon: "🔍", type: "tool", tools: ["web_search", "search_news", "fetch_url"], status: "live" as const },
+  { name: "Code Interpreter", desc: "Sandboxed Python/JS execution for data analysis, scripting, and testing", icon: "🐍", type: "tool", tools: ["execute_code", "analyze_data", "run_tests"], status: "live" as const },
+  { name: "Document Parser", desc: "Extract structured data from PDFs, DOCX, spreadsheets, and images", icon: "📋", type: "ai_capability", tools: ["extract_from_pdf", "extract_tables", "ocr_image"], status: "live" as const },
+  { name: "PDF Generator", desc: "Create professional PDFs from templates, merge, and watermark documents", icon: "📄", type: "tool", tools: ["pdf_create", "pdf_merge", "pdf_watermark"], status: "live" as const },
+  { name: "Email Engine", desc: "Templated emails, drip sequences, scheduling, and tracking", icon: "✉️", type: "wrapper", tools: ["send_templated_email", "schedule_email", "track_opens"], status: "live" as const },
+  { name: "Data Analyzer", desc: "Statistical analysis, charting, trend detection, and insight generation", icon: "📊", type: "tool", tools: ["analyze_data", "create_chart", "generate_insights", "detect_anomalies"], status: "live" as const },
+  { name: "Memory Manager", desc: "Semantic memory search, compression, and cross-agent knowledge sharing", icon: "🧠", type: "ai_capability", tools: ["search_memories", "compress_memory", "share_memory"], status: "live" as const },
+  { name: "Task Orchestrator", desc: "Create, delegate, and track tasks across agents with approval workflows", icon: "⚡", type: "workflow", tools: ["create_task", "delegate_task", "request_approval"], status: "live" as const },
+  { name: "CRM Bridge", desc: "Sync leads, contacts, and deals with external CRM systems", icon: "🤝", type: "wrapper", tools: ["sync_contact", "update_deal", "log_activity"], status: "planned" as const },
+  { name: "Notification Hub", desc: "Push notifications, in-app alerts, and escalation routing", icon: "🔔", type: "workflow", tools: ["send_notification", "escalate", "schedule_reminder"], status: "live" as const },
+  { name: "File Manager", desc: "Upload, organize, and version project files and knowledge bases", icon: "📁", type: "tool", tools: ["upload_file", "organize_kb", "version_doc"], status: "live" as const },
+  { name: "Audio Processor", desc: "Meeting transcription, audio summarization, and voice note extraction", icon: "🎙️", type: "ai_capability", tools: ["transcribe_audio", "extract_summary", "detect_action_items"], status: "planned" as const },
 ];
 
 // ─── Skill category icons ───────────────────────────────────────────────────
