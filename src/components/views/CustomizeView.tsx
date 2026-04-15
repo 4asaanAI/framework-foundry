@@ -251,16 +251,28 @@ export function CustomizeView() {
     const dupeIds: string[] = [];
     const sorted = [...allSkills].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     for (const s of sorted) {
-      if (seen.has(s.name.toLowerCase())) dupeIds.push(s.id);
-      else seen.set(s.name.toLowerCase(), s.id);
+      const key = s.name.trim().toLowerCase();
+      if (seen.has(key)) dupeIds.push(s.id);
+      else seen.set(key, s.id);
     }
     if (dupeIds.length === 0) { toast.info("No duplicates found"); return; }
+    let removed = 0;
     for (const id of dupeIds) {
       await supabase.from("agent_skills").delete().eq("skill_id", id);
-      await supabase.from("skills").delete().eq("id", id);
+      const { error } = await supabase.from("skills").delete().eq("id", id);
+      if (!error) removed++;
     }
-    toast.success(`Removed ${dupeIds.length} duplicate skills`);
-    qc.invalidateQueries({ queryKey: ["skills"] });
+    if (removed === 0) {
+      toast.error("Could not remove duplicates — checking permissions. Trying deactivation instead...");
+      for (const id of dupeIds) {
+        await supabase.from("skills").update({ is_active: false }).eq("id", id);
+      }
+      toast.success(`Deactivated ${dupeIds.length} duplicate skills`);
+    } else {
+      toast.success(`Removed ${removed} duplicate skills`);
+    }
+    await qc.invalidateQueries({ queryKey: ["skills"] });
+    await qc.refetchQueries({ queryKey: ["skills"] });
   };
 
   const handleUploadSkill = async (files: FileList | null) => {
