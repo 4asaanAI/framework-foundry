@@ -34,16 +34,20 @@ const PLUGIN_TYPE_LABELS: Record<string, { label: string; icon: string }> = {
   ai_capability: { label: "AI Capability", icon: "🧠" },
 };
 
-// ─── Built-in Plugin Library (from architecture doc) ────────────────────────
+// ─── Built-in Plugin Library ────────────────────────────────────────────────
 const LIBRARY_PLUGINS = [
-  { name: "Web Search", desc: "Search the web for real-time information", icon: "🔍", type: "tool", tools: ["web_search", "search_news"] },
-  { name: "Code Interpreter", desc: "Execute Python/JS code for data analysis", icon: "🐍", type: "tool", tools: ["execute_code", "analyze_data"] },
-  { name: "PDF Generator", desc: "Convert documents to professional PDFs", icon: "📄", type: "tool", tools: ["pdf_create", "pdf_merge", "pdf_watermark"] },
-  { name: "Image Processor", desc: "Resize, crop, filter, and generate thumbnails", icon: "🖼️", type: "tool", tools: ["resize_image", "crop_image", "generate_thumbnail"] },
-  { name: "Document Parser", desc: "Extract data from PDFs, DOCX, and spreadsheets", icon: "📋", type: "ai_capability", tools: ["extract_from_pdf", "extract_tables"] },
-  { name: "Email Templates", desc: "Template emails, bulk sending, scheduling", icon: "✉️", type: "wrapper", tools: ["send_templated_email", "schedule_email"] },
-  { name: "Data Analyzer", desc: "Statistical analysis, charting, and insights", icon: "📊", type: "tool", tools: ["analyze_data", "create_chart", "generate_insights"] },
-  { name: "Audio Processor", desc: "Transcription, audio generation, summaries", icon: "🎙️", type: "ai_capability", tools: ["transcribe_audio", "extract_summary"] },
+  { name: "Web Search", desc: "Real-time web search, news, and URL content extraction for agent research", icon: "🔍", type: "tool", tools: ["web_search", "search_news", "fetch_url"], status: "live" as const },
+  { name: "Code Interpreter", desc: "Sandboxed Python/JS execution for data analysis, scripting, and testing", icon: "🐍", type: "tool", tools: ["execute_code", "analyze_data", "run_tests"], status: "live" as const },
+  { name: "Document Parser", desc: "Extract structured data from PDFs, DOCX, spreadsheets, and images", icon: "📋", type: "ai_capability", tools: ["extract_from_pdf", "extract_tables", "ocr_image"], status: "live" as const },
+  { name: "PDF Generator", desc: "Create professional PDFs from templates, merge, and watermark documents", icon: "📄", type: "tool", tools: ["pdf_create", "pdf_merge", "pdf_watermark"], status: "live" as const },
+  { name: "Email Engine", desc: "Templated emails, drip sequences, scheduling, and tracking", icon: "✉️", type: "wrapper", tools: ["send_templated_email", "schedule_email", "track_opens"], status: "live" as const },
+  { name: "Data Analyzer", desc: "Statistical analysis, charting, trend detection, and insight generation", icon: "📊", type: "tool", tools: ["analyze_data", "create_chart", "generate_insights", "detect_anomalies"], status: "live" as const },
+  { name: "Memory Manager", desc: "Semantic memory search, compression, and cross-agent knowledge sharing", icon: "🧠", type: "ai_capability", tools: ["search_memories", "compress_memory", "share_memory"], status: "live" as const },
+  { name: "Task Orchestrator", desc: "Create, delegate, and track tasks across agents with approval workflows", icon: "⚡", type: "workflow", tools: ["create_task", "delegate_task", "request_approval"], status: "live" as const },
+  { name: "CRM Bridge", desc: "Sync leads, contacts, and deals with external CRM systems", icon: "🤝", type: "wrapper", tools: ["sync_contact", "update_deal", "log_activity"], status: "planned" as const },
+  { name: "Notification Hub", desc: "Push notifications, in-app alerts, and escalation routing", icon: "🔔", type: "workflow", tools: ["send_notification", "escalate", "schedule_reminder"], status: "live" as const },
+  { name: "File Manager", desc: "Upload, organize, and version project files and knowledge bases", icon: "📁", type: "tool", tools: ["upload_file", "organize_kb", "version_doc"], status: "live" as const },
+  { name: "Audio Processor", desc: "Meeting transcription, audio summarization, and voice note extraction", icon: "🎙️", type: "ai_capability", tools: ["transcribe_audio", "extract_summary", "detect_action_items"], status: "planned" as const },
 ];
 
 // ─── Skill category icons ───────────────────────────────────────────────────
@@ -75,6 +79,7 @@ export function CustomizeView() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [connectorSubTab, setConnectorSubTab] = useState<"catalog" | "active">("catalog");
+  const [pluginSubTab, setPluginSubTab] = useState<"library" | "installed">("library");
   const [connectingApp, setConnectingApp] = useState<string | null>(null);
   const [showCustomDialog, setShowCustomDialog] = useState(false);
   const [showCreateSkill, setShowCreateSkill] = useState(false);
@@ -317,10 +322,10 @@ export function CustomizeView() {
               <Plug className="h-3.5 w-3.5" /> Connectors
               <Badge variant="secondary" className="ml-1 text-xs">{activeConnectors.length}/{INTEGRATION_APPS.length}</Badge>
             </TabsTrigger>
-            <TabsTrigger value="plugins" className="gap-1.5">
-              <Puzzle className="h-3.5 w-3.5" /> Plugins
-              <Badge variant="secondary" className="ml-1 text-xs">{(plugins?.length ?? 0) + LIBRARY_PLUGINS.length}</Badge>
-            </TabsTrigger>
+             <TabsTrigger value="plugins" className="gap-1.5">
+               <Puzzle className="h-3.5 w-3.5" /> Plugins
+               <Badge variant="secondary" className="ml-1 text-xs">{plugins?.length ?? 0}</Badge>
+             </TabsTrigger>
             <TabsTrigger value="skills" className="gap-1.5">
               <Zap className="h-3.5 w-3.5" /> Skills
               <Badge variant="secondary" className="ml-1 text-xs">{skills?.length ?? 0}</Badge>
@@ -442,124 +447,156 @@ export function CustomizeView() {
           {/* ═══════════════════ PLUGINS TAB ═══════════════════ */}
           <TabsContent value="plugins" className="flex-1 overflow-hidden flex flex-col min-h-0 mt-0">
             <div className="flex items-center gap-2 mb-4">
-              <Button size="sm" onClick={() => setShowCreatePlugin(true)}>
+              <button onClick={() => setPluginSubTab("library")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${pluginSubTab === "library" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+                <BookOpen className="h-3 w-3 inline mr-1" /> Library ({filteredLibPlugins.length})
+              </button>
+              <button onClick={() => setPluginSubTab("installed")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${pluginSubTab === "installed" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+                <Layers className="h-3 w-3 inline mr-1" /> Installed ({filteredPlugins.length})
+              </button>
+              <div className="flex-1" />
+              <Button size="sm" onClick={() => { setPluginSubTab("installed"); setShowCreatePlugin(true); }}>
                 <Plus className="h-3.5 w-3.5 mr-1" /> Create Plugin
               </Button>
             </div>
 
             <ScrollArea className="flex-1">
-              {/* Create plugin form */}
-              {showCreatePlugin && (
-                <div className="border border-primary/30 rounded-xl p-4 mb-4 bg-card">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-sm font-semibold flex items-center gap-2"><Puzzle className="h-4 w-4 text-primary" /> Create Plugin</h4>
-                    <button onClick={() => setShowCreatePlugin(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Plugin ID</Label>
-                      <Input placeholder="my-plugin" value={pluginName} onChange={(e) => setPluginName(e.target.value)} className="h-8 text-xs" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Display Name</Label>
-                      <Input placeholder="My Plugin" value={pluginDisplayName} onChange={(e) => setPluginDisplayName(e.target.value)} className="h-8 text-xs" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs">Type</Label>
-                      <Select value={pluginType} onValueChange={setPluginType}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(PLUGIN_TYPE_LABELS).map(([k, v]) => (
-                            <SelectItem key={k} value={k}>{v.icon} {v.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5 col-span-2">
-                      <Label className="text-xs">Description & Context</Label>
-                      <Textarea placeholder="What does this plugin do? What tools does it add?" value={pluginContext} onChange={(e) => setPluginContext(e.target.value)} rows={2} className="text-xs" />
-                    </div>
-                    <div className="col-span-2">
-                      <Button size="sm" onClick={handleCreatePlugin} disabled={!pluginName}>Create</Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Plugin Library */}
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                <BookOpen className="h-3.5 w-3.5" /> Plugin Library
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
-                {filteredLibPlugins.map((item) => {
-                  const installed = (plugins ?? []).some((p: any) => p.name === item.name.toLowerCase().replace(/\s+/g, "_"));
-                  const typeLabel = PLUGIN_TYPE_LABELS[item.type] || PLUGIN_TYPE_LABELS.tool;
-                  return (
-                    <div key={item.name} className={`border rounded-xl p-4 transition-colors ${installed ? "border-primary/30 bg-primary/5" : "border-border hover:border-primary/20"}`}>
-                      <div className="flex items-start gap-3 mb-2">
-                        <span className="text-2xl">{item.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <h3 className="text-sm font-medium">{item.name}</h3>
-                            {installed && <CheckCircle2 className="h-3 w-3 text-primary" />}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <Badge variant="outline" className="text-[10px]">{typeLabel.icon} {typeLabel.label}</Badge>
-                          <Badge variant="outline" className="text-[10px] text-muted-foreground">{item.tools.length} tools</Badge>
-                        </div>
-                        {installed ? (
-                          <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20">Installed</Badge>
-                        ) : (
-                          <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => addLibraryPlugin(item)}>Install</Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Installed Plugins */}
-              {filteredPlugins.length > 0 && (
+              {pluginSubTab === "library" ? (
                 <>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1.5">
-                    <Layers className="h-3.5 w-3.5" /> Installed Plugins ({filteredPlugins.length})
-                  </h3>
-                  <div className="space-y-2 mb-6">
-                    {filteredPlugins.map((plugin: any) => (
-                      <div key={plugin.id} className="border border-border rounded-xl p-4 flex items-center gap-4 hover:border-primary/20 transition-colors group">
-                        <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
-                          <Puzzle className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-medium">{plugin.display_name || plugin.name}</h3>
-                            {Array.isArray(plugin.skills) && plugin.skills.length > 0 && (
-                              <Badge variant="outline" className="text-[10px]">{plugin.skills.length} tools</Badge>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground truncate">{plugin.context}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => togglePlugin(plugin.id, plugin.is_active)}
-                            className="p-1 rounded hover:bg-muted transition-colors" title={plugin.is_active ? "Disable" : "Enable"}>
-                            {plugin.is_active ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground" />}
-                          </button>
-                          <button onClick={async () => {
-                            if (!window.confirm(`Delete plugin "${plugin.display_name || plugin.name}"?`)) return;
-                            await supabase.from("plugins").delete().eq("id", plugin.id);
-                            qc.invalidateQueries({ queryKey: ["plugins"] });
-                            toast.success("Plugin removed");
-                          }} className="p-1 rounded hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </button>
-                        </div>
-                      </div>
+                  <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+                    <span className="text-xs text-muted-foreground mr-1">Types:</span>
+                    {Object.entries(PLUGIN_TYPE_LABELS).map(([key, val]) => (
+                      <span key={key} className="px-2 py-0.5 rounded-full text-[10px] bg-muted text-muted-foreground">
+                        {val.icon} {val.label}
+                      </span>
                     ))}
                   </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {filteredLibPlugins.map((item) => {
+                      const installed = (plugins ?? []).some((p: any) => p.name === item.name.toLowerCase().replace(/\s+/g, "_"));
+                      const typeLabel = PLUGIN_TYPE_LABELS[item.type] || PLUGIN_TYPE_LABELS.tool;
+                      const isPlanned = item.status === "planned";
+                      return (
+                        <div key={item.name} className={`border rounded-xl p-4 transition-all ${installed ? "border-primary/30 bg-primary/5" : isPlanned ? "border-border/50 opacity-75" : "border-border hover:border-primary/20"}`}>
+                          <div className="flex items-start gap-3 mb-2">
+                            <span className="text-2xl">{item.icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h3 className="text-sm font-medium">{item.name}</h3>
+                                {installed && <CheckCircle2 className="h-3 w-3 text-primary" />}
+                                {isPlanned && <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400">Coming Soon</Badge>}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.desc}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <Badge variant="outline" className="text-[10px]">{typeLabel.icon} {typeLabel.label}</Badge>
+                              <Badge variant="outline" className="text-[10px] text-muted-foreground">{item.tools.length} tools</Badge>
+                            </div>
+                            {installed ? (
+                              <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20">Installed</Badge>
+                            ) : isPlanned ? (
+                              <Badge variant="outline" className="text-[10px]">Planned</Badge>
+                            ) : (
+                              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => addLibraryPlugin(item)}>Install</Button>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-border/50">
+                            {item.tools.map(t => (
+                              <code key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">{t}</code>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {showCreatePlugin && (
+                    <div className="border border-primary/30 rounded-xl p-4 mb-4 bg-card">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold flex items-center gap-2"><Puzzle className="h-4 w-4 text-primary" /> Create Plugin</h4>
+                        <button onClick={() => setShowCreatePlugin(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Plugin ID</Label>
+                          <Input placeholder="my-plugin" value={pluginName} onChange={(e) => setPluginName(e.target.value)} className="h-8 text-xs" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Display Name</Label>
+                          <Input placeholder="My Plugin" value={pluginDisplayName} onChange={(e) => setPluginDisplayName(e.target.value)} className="h-8 text-xs" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Type</Label>
+                          <Select value={pluginType} onValueChange={setPluginType}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {Object.entries(PLUGIN_TYPE_LABELS).map(([k, v]) => (
+                                <SelectItem key={k} value={k}>{v.icon} {v.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5 col-span-2">
+                          <Label className="text-xs">Description & Context</Label>
+                          <Textarea placeholder="What does this plugin do? What tools does it add?" value={pluginContext} onChange={(e) => setPluginContext(e.target.value)} rows={2} className="text-xs" />
+                        </div>
+                        <div className="col-span-2">
+                          <Button size="sm" onClick={handleCreatePlugin} disabled={!pluginName}>Create</Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {filteredPlugins.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Puzzle className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                      <p className="text-sm">No plugins installed yet. Browse the library to get started.</p>
+                      <Button variant="outline" size="sm" className="mt-3" onClick={() => setPluginSubTab("library")}>Browse Library</Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredPlugins.map((plugin: any) => {
+                        const toolCount = Array.isArray(plugin.skills) ? plugin.skills.length : 0;
+                        return (
+                          <div key={plugin.id} className="border border-border rounded-xl p-4 flex items-center gap-4 hover:border-primary/20 transition-colors group">
+                            <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
+                              <Puzzle className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-medium">{plugin.display_name || plugin.name}</h3>
+                                {toolCount > 0 && <Badge variant="outline" className="text-[10px]">{toolCount} tools</Badge>}
+                                <Badge variant="outline" className={`text-[10px] ${plugin.is_active ? "border-emerald-500/30 text-emerald-400" : "border-muted text-muted-foreground"}`}>
+                                  {plugin.is_active ? "Active" : "Disabled"}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground truncate mt-0.5">{plugin.context}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => togglePlugin(plugin.id, plugin.is_active)}
+                                className="p-1 rounded hover:bg-muted transition-colors" title={plugin.is_active ? "Disable" : "Enable"}>
+                                {plugin.is_active ? <ToggleRight className="h-5 w-5 text-primary" /> : <ToggleLeft className="h-5 w-5 text-muted-foreground" />}
+                              </button>
+                              <button onClick={async () => {
+                                if (!window.confirm(`Delete plugin "${plugin.display_name || plugin.name}"?`)) return;
+                                await supabase.from("plugins").delete().eq("id", plugin.id);
+                                qc.invalidateQueries({ queryKey: ["plugins"] });
+                                toast.success("Plugin removed");
+                              }} className="p-1 rounded hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </>
               )}
             </ScrollArea>
