@@ -93,72 +93,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: "Incorrect password" };
     }
 
-    // Sign in with Supabase using deterministic password
-    try {
-      const supabasePassword = await deriveSupabasePassword(p.email);
+    // Sign in with Supabase using deterministic password.
+    // No local-session fallback: if Supabase auth fails, RLS blocks all queries
+    // and the platform is unusable. We must surface the error.
+    const supabasePassword = await deriveSupabasePassword(p.email);
 
-      // Try sign in first
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+    // Try sign in first
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: p.email,
+      password: supabasePassword,
+    });
+
+    if (signInError) {
+      // If sign-in failed, the user may not exist yet — try to create them
+      const { error: signUpError } = await supabase.auth.signUp({
+        email: p.email,
+        password: supabasePassword,
+        options: { data: { display_name: p.name } },
+      });
+
+      if (signUpError && !/already registered|already exists/i.test(signUpError.message)) {
+        setLoading(false);
+        return { success: false, error: `Sign-in failed: ${signUpError.message}` };
+      }
+
+      // Retry sign-in after signup
+      const { error: retryError } = await supabase.auth.signInWithPassword({
         email: p.email,
         password: supabasePassword,
       });
-
-      if (signInError) {
-        // If user doesn't exist, sign up (auto-confirm is enabled)
-        const { error: signUpError } = await supabase.auth.signUp({
-          email: p.email,
-          password: supabasePassword,
-          options: { data: { display_name: p.name } },
-        });
-
-        if (signUpError) {
-          console.warn("Supabase auth failed, falling back to local session:", signUpError.message);
-          // Fall through to local session
-        } else {
-          // Sign up succeeded with auto-confirm, now sign in
-          const { error: retryError } = await supabase.auth.signInWithPassword({
-            email: p.email,
-            password: supabasePassword,
-          });
-          if (retryError) {
-            console.warn("Sign in after signup failed:", retryError.message);
-          }
-        }
-      }
-
-      // Check if we now have a valid session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        // Ensure profile exists in DB
-        const userId = session.user.id;
-        const { data: existingProfile } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("user_id", userId)
-          .maybeSingle();
-
-        if (!existingProfile) {
-          await supabase.from("profiles").insert({
-            user_id: userId,
-            display_name: p.name,
-            role: "admin",
-          });
-        }
-
-        setUser(session.user);
-        setProfile(p);
+      if (retryError) {
         setLoading(false);
-        return { success: true };
+        return { success: false, error: `Sign-in failed: ${retryError.message}` };
       }
-    } catch (e) {
-      console.warn("Supabase auth exception:", e);
     }
 
-    // Fallback: local session (for when Supabase auth is completely unavailable)
-    const localUser = { id: p.email.split("@")[0] + "-local", email: p.email };
-    localStorage.setItem("layaa_active_profile", JSON.stringify(p));
-    localStorage.setItem("layaa_active_user", JSON.stringify(localUser));
-    setUser(localUser as any);
+    // Confirm we have a valid session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      setLoading(false);
+      return { success: false, error: "No session established" };
+    }
+
+    // Ensure a profile row exists (id mirrors user_id via enforce_profile_id trigger)
+    const userId = session.user.id;
+    const { data: existingProfile } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (!existingProfile) {
+      await supabase.from("profiles").insert({
+        user_id: userId,
+        display_name: p.name,
+        role: "admin",
+      });
+    }
+
+    setUser(session.user);
     setProfile(p);
     setLoading(false);
     return { success: true };
