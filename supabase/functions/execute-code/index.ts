@@ -7,6 +7,7 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,11 +33,24 @@ async function executeJavaScript(code: string): Promise<{ stdout: string; stderr
   try {
     // Create async function with sandboxed console
     const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-    const fn = new AsyncFunction("console", "Math", "JSON", "Date", "Array", "Object", "String", "Number", "Boolean", "Map", "Set", "RegExp", "Promise", "parseInt", "parseFloat", "isNaN", "isFinite", code);
+    // Shadow Deno, fetch, globalThis, window, self, process, XMLHttpRequest, WebSocket,
+    // import, require so submitted code cannot reach env vars or make network calls.
+    const fn = new AsyncFunction(
+      "console", "Math", "JSON", "Date", "Array", "Object", "String", "Number", "Boolean",
+      "Map", "Set", "RegExp", "Promise", "parseInt", "parseFloat", "isNaN", "isFinite",
+      "Deno", "fetch", "globalThis", "window", "self", "process", "XMLHttpRequest", "WebSocket",
+      "require", "import", "eval", "Function",
+      code,
+    );
 
     // Execute with timeout
     const result = await Promise.race([
-      fn(sandboxConsole, Math, JSON, Date, Array, Object, String, Number, Boolean, Map, Set, RegExp, Promise, parseInt, parseFloat, isNaN, isFinite),
+      fn(
+        sandboxConsole, Math, JSON, Date, Array, Object, String, Number, Boolean,
+        Map, Set, RegExp, Promise, parseInt, parseFloat, isNaN, isFinite,
+        undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+        undefined, undefined, undefined, undefined,
+      ),
       new Promise((_, reject) => setTimeout(() => reject(new Error("Execution timed out (30s limit)")), TIMEOUT_MS)),
     ]);
 
@@ -126,8 +140,18 @@ function executePythonSubset(code: string): { stdout: string; stderr: string; ex
       log: (...args: unknown[]) => stdout.push(args.map(a => typeof a === "object" ? JSON.stringify(a, null, 2) : String(a)).join(" ")),
     };
 
-    const fn = new Function("console", "Math", "JSON", "parseInt", "parseFloat", jsCode);
-    fn(sandboxConsole, Math, JSON, parseInt, parseFloat);
+    // Shadow dangerous globals so transpiled Python cannot escape the sandbox.
+    const fn = new Function(
+      "console", "Math", "JSON", "parseInt", "parseFloat",
+      "Deno", "fetch", "globalThis", "window", "self", "process", "XMLHttpRequest", "WebSocket",
+      "require", "import", "eval", "Function",
+      jsCode,
+    );
+    fn(
+      sandboxConsole, Math, JSON, parseInt, parseFloat,
+      undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+      undefined, undefined, undefined, undefined,
+    );
 
     return { stdout: stdout.join("\n"), stderr: "", exitCode: 0 };
   } catch (err: any) {
@@ -141,6 +165,30 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Require a valid Supabase JWT — without this, anyone could run arbitrary code
+    // and exfiltrate the service role key from Deno.env.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const sb = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } },
+    );
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await sb.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const body = await req.json();
     const { language, code } = body;
 
