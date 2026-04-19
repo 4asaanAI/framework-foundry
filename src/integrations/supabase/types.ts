@@ -53,6 +53,13 @@ export type Database = {
             referencedRelation: "agents"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "agent_kbs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       agent_memories: {
@@ -97,6 +104,13 @@ export type Database = {
             referencedRelation: "agents"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "agent_memories_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       agent_skills: {
@@ -124,6 +138,13 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_skills_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents_public"
             referencedColumns: ["id"]
           },
           {
@@ -329,6 +350,13 @@ export type Database = {
             referencedRelation: "agents"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "approvals_requesting_agent_id_fkey"
+            columns: ["requesting_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       audit_log: {
@@ -506,6 +534,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "conversations_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "conversations_branch_parent_id_fkey"
             columns: ["branch_parent_id"]
             isOneToOne: false
@@ -548,6 +583,13 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "core_context_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents_public"
             referencedColumns: ["id"]
           },
         ]
@@ -619,6 +661,13 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_updates_log_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents_public"
             referencedColumns: ["id"]
           },
           {
@@ -727,6 +776,13 @@ export type Database = {
             columns: ["escalated_by_agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalations_escalated_by_agent_id_fkey"
+            columns: ["escalated_by_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents_public"
             referencedColumns: ["id"]
           },
           {
@@ -995,6 +1051,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "messages_mention_agent_id_fkey"
+            columns: ["mention_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "messages_parent_message_id_fkey"
             columns: ["parent_message_id"]
             isOneToOne: false
@@ -1050,6 +1113,13 @@ export type Database = {
             columns: ["source_agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_source_agent_id_fkey"
+            columns: ["source_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1155,6 +1225,13 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents_public"
             referencedColumns: ["id"]
           },
           {
@@ -1531,8 +1608,29 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tasks_assigned_agent_id_fkey"
+            columns: ["assigned_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tasks_created_by_agent_id_fkey"
             columns: ["created_by_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_created_by_agent_id_fkey"
+            columns: ["created_by_agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_modified_by_agent_id_fkey"
+            columns: ["modified_by_agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
             referencedColumns: ["id"]
@@ -1541,7 +1639,7 @@ export type Database = {
             foreignKeyName: "tasks_modified_by_agent_id_fkey"
             columns: ["modified_by_agent_id"]
             isOneToOne: false
-            referencedRelation: "agents"
+            referencedRelation: "agents_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1641,7 +1739,81 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      agents_public: {
+        Row: {
+          avatar_color: string | null
+          avatar_initials: string | null
+          budget_loaned: number | null
+          budget_period_start: string | null
+          budget_tokens: number | null
+          budget_used: number | null
+          canonical_role: string | null
+          created_at: string | null
+          created_by: string | null
+          custom_api_base_url: string | null
+          default_model: string | null
+          description: string | null
+          id: string | null
+          is_active: boolean | null
+          llm_provider: string | null
+          name: string | null
+          prompt_history: Json | null
+          prompt_version: number | null
+          status: Database["public"]["Enums"]["agent_status"] | null
+          system_prompt: string | null
+          team: Database["public"]["Enums"]["team_type"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_color?: string | null
+          avatar_initials?: string | null
+          budget_loaned?: number | null
+          budget_period_start?: string | null
+          budget_tokens?: number | null
+          budget_used?: number | null
+          canonical_role?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          custom_api_base_url?: string | null
+          default_model?: string | null
+          description?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          llm_provider?: string | null
+          name?: string | null
+          prompt_history?: Json | null
+          prompt_version?: number | null
+          status?: Database["public"]["Enums"]["agent_status"] | null
+          system_prompt?: string | null
+          team?: Database["public"]["Enums"]["team_type"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_color?: string | null
+          avatar_initials?: string | null
+          budget_loaned?: number | null
+          budget_period_start?: string | null
+          budget_tokens?: number | null
+          budget_used?: number | null
+          canonical_role?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          custom_api_base_url?: string | null
+          default_model?: string | null
+          description?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          llm_provider?: string | null
+          name?: string | null
+          prompt_history?: Json | null
+          prompt_version?: number | null
+          status?: Database["public"]["Enums"]["agent_status"] | null
+          system_prompt?: string | null
+          team?: Database["public"]["Enums"]["team_type"] | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
